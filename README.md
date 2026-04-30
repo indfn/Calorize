@@ -11,7 +11,7 @@
 
 ## ✨ Features
 
-*   **👁️ AI Food Analysis:** Snap a photo of your meal. Calorize uses **Google Gemini 2.5** to identify ingredients, estimate portion sizes, and calculate calories instantly.
+*   **👁️ Food Content Analysis:** Snap a photo of your meal. Calorize uses **Gemini API** to identify ingredients, estimate portion sizes, and calculate calories instantly.
 *   **🔒 Privacy First:** **No servers. No accounts.** All data is stored locally on your device using the high-performance **Isar Database**. Your health data belongs to you.
 *   **📷 Barcode Scanner:** Instant nutritional data for packaged goods via OpenFoodFacts.
 *   **📊 Deep Analytics:** Interactive charts for weight, BMI, and calorie trends.
