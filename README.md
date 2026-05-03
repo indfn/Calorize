@@ -62,7 +62,7 @@ If you want to modify the code or build it yourself:
 
 1.  Clone the repo:
     ```bash
-    git clone https://github.com/Indef1ne/Calorize
+    git clone https://github.com/indfn/Calorize
     ```
 2.  Run code generation:
     ```bash
