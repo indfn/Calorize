@@ -1,11 +1,14 @@
 import 'dart:async';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:calorize/widgets/date_strip.dart';
 import 'package:calorize/widgets/streak_icon.dart';
 import 'package:isar/isar.dart';
 
 import 'package:calorize/services/database_service.dart';
+import 'package:calorize/services/food_sourcing_service.dart';
 import 'package:calorize/widgets/dashboard_carousel.dart';
 import 'package:calorize/widgets/recently_uploaded_list.dart';
 import 'package:calorize/data/models/user_profile.dart';
@@ -225,23 +228,125 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       );
                     },
                   ),
-                  const SizedBox(height: 8),
-                  ListTile(
-                    leading: Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(color: Theme.of(context).colorScheme.surfaceContainerHighest, borderRadius: BorderRadius.circular(8)),
-                      child: Icon(Icons.camera_alt, color: Theme.of(context).colorScheme.primary),
-                    ),
-                    title: Text('Scan / AI Camera', style: GoogleFonts.inter(fontWeight: FontWeight.w600)),
-                    onTap: () {
-                      Navigator.pop(context);
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (context) => const CameraLoggingScreen()),
-                      );
-                    },
+                  const SizedBox(height: 16),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          onPressed: () {
+                            Navigator.pop(context);
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => const CameraLoggingScreen(initialBarcodeMode: true),
+                              ),
+                            );
+                          },
+                          icon: const Icon(Icons.qr_code_scanner),
+                          label: Text(
+                            'Barcode',
+                            style: GoogleFonts.inter(fontWeight: FontWeight.w600),
+                          ),
+                          style: OutlinedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: FilledButton.icon(
+                          onPressed: () async {
+                            Navigator.pop(context);
+                            try {
+                              final picked = await ImagePicker().pickImage(source: ImageSource.camera);
+                              if (picked != null && context.mounted) {
+                                final imageFile = File(picked.path);
+                                // Show context dialog
+                                final contextController = TextEditingController();
+                                final shouldAnalyze = await showDialog<bool>(
+                                  context: context,
+                                  builder: (context) => AlertDialog(
+                                    title: const Text('Add Context'),
+                                    content: TextField(
+                                      controller: contextController,
+                                      decoration: const InputDecoration(
+                                        hintText: 'e.g. "Lunch at a cafe", "Homemade pasta"',
+                                      ),
+                                    ),
+                                    actions: [
+                                      TextButton(
+                                        onPressed: () => Navigator.pop(context, false),
+                                        child: const Text('Cancel'),
+                                      ),
+                                      FilledButton(
+                                        onPressed: () => Navigator.pop(context, true),
+                                        child: const Text('Analyze'),
+                                      ),
+                                    ],
+                                  ),
+                                );
+
+                                if (shouldAnalyze == true && context.mounted) {
+                                  // Show progress indicator dialog
+                                  showDialog(
+                                    context: context,
+                                    barrierDismissible: false,
+                                    builder: (context) => const Center(
+                                      child: CircularProgressIndicator(),
+                                    ),
+                                  );
+
+                                  try {
+                                    final log = await FoodSourcingService().analyzeImage(
+                                      imageFile,
+                                      contextController.text,
+                                    );
+                                    if (context.mounted) {
+                                      Navigator.pop(context); // Dismiss progress dialog
+                                      showModalBottomSheet(
+                                        context: context,
+                                        isScrollControlled: true,
+                                        backgroundColor: Colors.transparent,
+                                        builder: (context) => FoodEditSheet(initialLog: log),
+                                      );
+                                    }
+                                  } catch (e) {
+                                    if (context.mounted) {
+                                      Navigator.pop(context); // Dismiss progress dialog
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        SnackBar(content: Text('Analysis failed: $e')),
+                                      );
+                                    }
+                                  }
+                                }
+                              }
+                            } catch (e) {
+                              if (context.mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(content: Text('Error picking image: $e')),
+                                );
+                              }
+                            }
+                          },
+                          icon: const Icon(Icons.camera_alt),
+                          label: Text(
+                            'Analyze Food',
+                            style: GoogleFonts.inter(fontWeight: FontWeight.w600),
+                          ),
+                          style: FilledButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 16),
                 ],
               ),
             ),

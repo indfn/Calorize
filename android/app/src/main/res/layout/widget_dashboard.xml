@@ -51,24 +51,6 @@
                 android:textColor="@color/widget_text_secondary"
                 android:textSize="10sp" />
         </LinearLayout>
-
-        <TextView
-            android:id="@+id/btn_log_food"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_below="@id/pb_calories"
-            android:layout_centerHorizontal="true"
-            android:layout_marginTop="8dp"
-            android:background="@drawable/pill_button_background"
-            android:gravity="center"
-            android:paddingStart="16dp"
-            android:paddingTop="8dp"
-            android:paddingEnd="16dp"
-            android:paddingBottom="8dp"
-            android:text="+ Log your food"
-            android:textColor="@color/widget_button_text"
-            android:textSize="12sp"
-            android:textStyle="bold" />
     </RelativeLayout>
 
     <!-- Right Side: Macros List -->

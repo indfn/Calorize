@@ -105,9 +105,6 @@ fun updateDashboardWidget(context: Context, appWidgetManager: AppWidgetManager, 
     views.setTextViewText(R.id.tv_fats_value, "${fatsLeft}g")
     views.setProgressBar(R.id.pb_calories, 100, progress, false)
 
-    // Click Listeners
-    setOnClickOpenApp(context, views, R.id.btn_log_food, "calorize://manual_log")
-
     appWidgetManager.updateAppWidget(appWidgetId, views)
 }
 
