@@ -90,8 +90,6 @@ class _CameraLoggingScreenState extends State<CameraLoggingScreen> {
   }
 
   Future<void> _captureAndAnalyze({required bool fromGallery}) async {
-    setState(() => _isProcessing = true);
-    
     try {
       File? imageFile;
       
@@ -106,45 +104,50 @@ class _CameraLoggingScreenState extends State<CameraLoggingScreen> {
       if (imageFile != null && mounted) {
         // Show Context Dialog
         final contextController = TextEditingController();
-        final shouldAnalyze = await showDialog<bool>(
-          context: context,
-          builder: (context) => AlertDialog(
-            title: const Text('Add Context'),
-            content: TextField(
-              controller: contextController,
-              decoration: const InputDecoration(
-                hintText: 'e.g. "Lunch at a cafe", "Homemade pasta"',
+        try {
+          final shouldAnalyze = await showDialog<bool>(
+            context: context,
+            builder: (context) => AlertDialog(
+              title: const Text('Add Context'),
+              content: TextField(
+                controller: contextController,
+                decoration: const InputDecoration(
+                  hintText: 'e.g. "Lunch at a cafe", "Homemade pasta"',
+                ),
               ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context, false),
+                  child: const Text('Cancel'),
+                ),
+                FilledButton(
+                  onPressed: () => Navigator.pop(context, true),
+                  child: const Text('Analyze'),
+                ),
+              ],
             ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context, false),
-                child: const Text('Cancel'),
-              ),
-              FilledButton(
-                onPressed: () => Navigator.pop(context, true),
-                child: const Text('Analyze'),
-              ),
-            ],
-          ),
-        );
+          );
 
-        if (shouldAnalyze == true && mounted) {
-          final log = await FoodSourcingService().analyzeImage(imageFile, contextController.text);
-          if (mounted) {
-            await showModalBottomSheet(
-              context: context,
-              isScrollControlled: true,
-              backgroundColor: Colors.transparent,
-              builder: (context) => FoodEditSheet(initialLog: log),
-            );
-            if (mounted) Navigator.pop(context);
+          if (shouldAnalyze == true && mounted) {
+            setState(() => _isProcessing = true);
+            final log = await FoodSourcingService().analyzeImage(imageFile, contextController.text);
+            if (mounted) {
+              await showModalBottomSheet(
+                context: context,
+                isScrollControlled: true,
+                backgroundColor: Colors.transparent,
+                builder: (context) => FoodEditSheet(initialLog: log),
+              );
+              if (mounted) Navigator.pop(context);
+            }
+          } else {
+            // User cancelled context dialog, pop the screen as well since this is deep-link mode
+            if (mounted && !widget.initialBarcodeMode) {
+              Navigator.pop(context);
+            }
           }
-        } else {
-          // User cancelled context dialog, pop the screen as well since this is deep-link mode
-          if (mounted && !widget.initialBarcodeMode) {
-            Navigator.pop(context);
-          }
+        } finally {
+          contextController.dispose();
         }
       } else {
         // User cancelled image selection/capture, pop the screen since this is deep-link mode
