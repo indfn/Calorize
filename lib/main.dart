@@ -80,7 +80,7 @@ class _MyAppState extends State<MyApp> {
   void _handleLaunch(Uri? uri) {
     if (uri == null) return;
     
-   Future.delayed(const Duration(milliseconds: 300), () {
+    Future.delayed(const Duration(milliseconds: 300), () {
       final context = _navigatorKey.currentContext;
       if (context == null) return;
 
@@ -95,20 +95,26 @@ class _MyAppState extends State<MyApp> {
             MaterialPageRoute(
               builder: (_) => const CameraLoggingScreen(initialBarcodeMode: true),
             ),
-          );
+          ).catchError((e) {
+            debugPrint('Navigation error scan_barcode: $e');
+          });
         } else if (action == 'scan_ai') {
           Navigator.of(context).push(
             MaterialPageRoute(
               builder: (_) => const CameraLoggingScreen(initialBarcodeMode: false),
             ),
-          );
+          ).catchError((e) {
+            debugPrint('Navigation error scan_ai: $e');
+          });
         } else if (action == 'manual_log') {
           showModalBottomSheet(
             context: context,
             isScrollControlled: true,
             backgroundColor: Colors.transparent,
             builder: (context) => const FoodEditSheet(),
-          );
+          ).catchError((e) {
+            debugPrint('BottomSheet error manual_log: $e');
+          });
         }
       }
     });
