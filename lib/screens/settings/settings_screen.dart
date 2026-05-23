@@ -1084,7 +1084,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         onPressed: () async {
                           _userProfile!.dietPreference = 'Custom';
                           
-                          final tdee = _userProfile!.tdeeGoal ?? 2000;
+                          final weekday = DateTime.now().weekday;
+                          final tdee = _userProfile!.getTdeeGoalForDay(weekday);
                           _userProfile!.proteinGoal = (tdee * _userProfile!.proteinPercentage / 100) / 4;
                           _userProfile!.carbsGoal = (tdee * _userProfile!.carbsPercentage / 100) / 4;
                           _userProfile!.fatGoal = (tdee * _userProfile!.fatPercentage / 100) / 9;

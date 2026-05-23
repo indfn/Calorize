@@ -113,7 +113,8 @@ class _MacroSlidersState extends State<MacroSliders> {
   }
 
   int _calculateGrams(double percentage, int caloriesPerGram) {
-    final tdee = widget.profile.tdeeGoal ?? 2000;
+    final weekday = DateTime.now().weekday;
+    final tdee = widget.profile.getTdeeGoalForDay(weekday);
     if (percentage.isNaN || percentage.isInfinite || tdee == 0 || caloriesPerGram == 0) {
       return 0;
     }

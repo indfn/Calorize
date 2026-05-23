@@ -243,7 +243,7 @@ class _ProgressScreenState extends State<ProgressScreen> {
                     const SizedBox(height: 24),
                     CalorieChart(
                       stats: _calorieHistory,
-                      calorieGoal: _userProfile?.tdeeGoal ?? 2000,
+                      calorieGoal: _userProfile?.getTdeeGoalForDay(DateTime.now().weekday) ?? 2000,
                       selectedRange: _calorieChartRange,
                     ),
                   ],

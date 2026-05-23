@@ -5,7 +5,6 @@ import 'package:calorize/data/models/user_profile.dart';
 import 'package:calorize/data/models/food_log.dart';
 import 'package:calorize/data/models/daily_stat.dart';
 import 'package:calorize/services/database_service.dart';
-import 'package:calorize/services/database_service.dart';
 
 class DashboardCarousel extends StatefulWidget {
   final UserProfile? userProfile;
@@ -50,13 +49,41 @@ class _DashboardCarouselState extends State<DashboardCarousel> {
   double get _totalSodium => widget.todayLogs.fold<double>(0, (sum, log) => sum + (log.macros.sodium ?? 0));
 
   // Calculate remaining values
-  int get _caloriesLeft => (widget.userProfile?.tdeeGoal ?? 0) - _totalCalories;
-  double get _proteinLeft => (widget.userProfile?.proteinGoal ?? 0) - _totalProtein;
-  double get _carbsLeft => (widget.userProfile?.carbsGoal ?? 0) - _totalCarbs;
-  double get _fatLeft => (widget.userProfile?.fatGoal ?? 0) - _totalFat;
-  double get _fiberLeft => (widget.userProfile?.fiberGoal ?? 0) - _totalFiber;
-  double get _sugarLeft => (widget.userProfile?.sugarGoal ?? 0) - _totalSugar;
-  double get _sodiumLeft => (widget.userProfile?.sodiumGoal ?? 0) - _totalSodium;
+  int get _caloriesLeft {
+    final weekday = DateTime.now().weekday;
+    final goal = widget.userProfile?.getTdeeGoalForDay(weekday) ?? 0;
+    return goal - _totalCalories;
+  }
+  double get _proteinLeft {
+    final weekday = DateTime.now().weekday;
+    final goal = widget.userProfile?.getProteinGoalForDay(weekday) ?? 0;
+    return goal - _totalProtein;
+  }
+  double get _carbsLeft {
+    final weekday = DateTime.now().weekday;
+    final goal = widget.userProfile?.getCarbsGoalForDay(weekday) ?? 0;
+    return goal - _totalCarbs;
+  }
+  double get _fatLeft {
+    final weekday = DateTime.now().weekday;
+    final goal = widget.userProfile?.getFatGoalForDay(weekday) ?? 0;
+    return goal - _totalFat;
+  }
+  double get _fiberLeft {
+    final weekday = DateTime.now().weekday;
+    final goal = widget.userProfile?.getFiberGoalForDay(weekday) ?? 0;
+    return goal - _totalFiber;
+  }
+  double get _sugarLeft {
+    final weekday = DateTime.now().weekday;
+    final goal = widget.userProfile?.getSugarGoalForDay(weekday) ?? 0;
+    return goal - _totalSugar;
+  }
+  double get _sodiumLeft {
+    final weekday = DateTime.now().weekday;
+    final goal = widget.userProfile?.getSodiumGoalForDay(weekday) ?? 0;
+    return goal - _totalSodium;
+  }
 
   // Calculate progress (eaten / goal)
   double _calculateProgress(double eaten, double goal) {
@@ -89,9 +116,10 @@ class _DashboardCarouselState extends State<DashboardCarousel> {
     if (widget.userProfile == null) return 0;
     
     int score = 0;
+    final weekday = DateTime.now().weekday;
     
     // 1. Calories (4 pts)
-    final caloriesGoal = widget.userProfile!.tdeeGoal ?? 2000;
+    final caloriesGoal = widget.userProfile!.getTdeeGoalForDay(weekday);
     if (caloriesGoal > 0 && _totalCalories > 0) {
       final ratio = _totalCalories / caloriesGoal;
       if (ratio >= 0.9 && ratio <= 1.1) {
@@ -104,7 +132,7 @@ class _DashboardCarouselState extends State<DashboardCarousel> {
     }
 
     // 2. Protein (2 pts)
-    final proteinGoal = widget.userProfile!.proteinGoal ?? 150;
+    final proteinGoal = widget.userProfile!.getProteinGoalForDay(weekday);
     if (proteinGoal > 0) {
       final ratio = _totalProtein / proteinGoal;
       if (ratio >= 0.9) {
@@ -115,7 +143,7 @@ class _DashboardCarouselState extends State<DashboardCarousel> {
     }
 
     // 3. Fiber (2 pts)
-    final fiberGoal = widget.userProfile!.fiberGoal ?? 30;
+    final fiberGoal = widget.userProfile!.getFiberGoalForDay(weekday);
     if (fiberGoal > 0) {
       final ratio = _totalFiber / fiberGoal;
       if (ratio >= 0.9) {
@@ -127,8 +155,8 @@ class _DashboardCarouselState extends State<DashboardCarousel> {
 
     // 4. Sugar & Sodium (2 pts)
     // Both below goal = 2 pts, one below = 1 pt
-    final sugarGoal = widget.userProfile!.sugarGoal ?? 50;
-    final sodiumGoal = widget.userProfile!.sodiumGoal ?? 2300;
+    final sugarGoal = widget.userProfile!.getSugarGoalForDay(weekday);
+    final sodiumGoal = widget.userProfile!.getSodiumGoalForDay(weekday);
     
     int limitPoints = 0;
     if (_totalSugar <= sugarGoal) limitPoints++;
@@ -166,10 +194,11 @@ class _DashboardCarouselState extends State<DashboardCarousel> {
   }
 
   Widget _buildNutritionPage() {
-    final caloriesGoal = widget.userProfile?.tdeeGoal ?? 2000;
-    final proteinGoal = widget.userProfile?.proteinGoal ?? 150;
-    final carbsGoal = widget.userProfile?.carbsGoal ?? 250;
-    final fatGoal = widget.userProfile?.fatGoal ?? 65;
+    final weekday = DateTime.now().weekday;
+    final caloriesGoal = widget.userProfile?.getTdeeGoalForDay(weekday) ?? 2000;
+    final proteinGoal = widget.userProfile?.getProteinGoalForDay(weekday) ?? 150;
+    final carbsGoal = widget.userProfile?.getCarbsGoalForDay(weekday) ?? 250;
+    final fatGoal = widget.userProfile?.getFatGoalForDay(weekday) ?? 65;
     
     // Calculate adjusted goal with rollover
     final isRolloverEnabled = widget.userProfile?.rolloverEnabled ?? false;
@@ -368,9 +397,10 @@ class _DashboardCarouselState extends State<DashboardCarousel> {
   }
 
   Widget _buildMicrosPage() {
-    final fiberGoal = widget.userProfile?.fiberGoal ?? 38;
-    final sugarGoal = widget.userProfile?.sugarGoal ?? 50;
-    final sodiumGoal = widget.userProfile?.sodiumGoal ?? 2300;
+    final weekday = DateTime.now().weekday;
+    final fiberGoal = widget.userProfile?.getFiberGoalForDay(weekday) ?? 38;
+    final sugarGoal = widget.userProfile?.getSugarGoalForDay(weekday) ?? 50;
+    final sodiumGoal = widget.userProfile?.getSodiumGoalForDay(weekday) ?? 2300;
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 24.0),

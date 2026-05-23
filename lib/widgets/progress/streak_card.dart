@@ -80,7 +80,7 @@ class StreakCard extends StatelessWidget {
       final date = stat?.date ?? DateTime.now().subtract(Duration(days: 6 - i));
       final dayLetter = _getDayLetter(date.weekday);
       
-      final baseGoal = userProfile?.tdeeGoal ?? 2000;
+      final baseGoal = userProfile?.getTdeeGoalForDay(date.weekday) ?? 2000;
       final tolerance = userProfile?.successTolerance ?? 50;
       
       final isGoalMet = stat != null && 

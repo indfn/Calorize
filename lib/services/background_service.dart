@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:home_widget/home_widget.dart';
 import 'package:calorize/services/database_service.dart';
 import 'package:calorize/data/models/daily_stat.dart';
+import 'package:calorize/data/models/user_profile.dart';
 
 class BackgroundService {
   static final BackgroundService _instance = BackgroundService._internal();
@@ -32,19 +33,14 @@ class BackgroundService {
       currentFat += log.macros.fat ?? 0;
     }
 
-    final baseGoal = profile.tdeeGoal ?? 2000;
+    final baseGoal = profile.getTdeeGoalForDay(now.weekday);
     final caloriesLeft = (baseGoal - currentCalories).clamp(0, baseGoal);
     final progress = (currentCalories / baseGoal * 100).clamp(0, 100).toInt();
     final percentageText = "$progress%";
 
-    // Calculate macro goals based on profile percentages or use defaults
-    final proteinPercentage = profile.proteinPercentage / 100;
-    final carbsPercentage = profile.carbsPercentage / 100;
-    final fatPercentage = profile.fatPercentage / 100;
-    
-    double proteinGoal = profile.proteinGoal ?? (baseGoal * proteinPercentage / 4);
-    double carbsGoal = profile.carbsGoal ?? (baseGoal * carbsPercentage / 4);
-    double fatGoal = profile.fatGoal ?? (baseGoal * fatPercentage / 9);
+    double proteinGoal = profile.getProteinGoalForDay(now.weekday);
+    double carbsGoal = profile.getCarbsGoalForDay(now.weekday);
+    double fatGoal = profile.getFatGoalForDay(now.weekday);
 
     final proteinLeft = (proteinGoal - currentProtein).clamp(0, proteinGoal).round();
     final carbsLeft = (carbsGoal - currentCarbs).clamp(0, carbsGoal).round();
