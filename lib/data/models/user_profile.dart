@@ -58,3 +58,60 @@ class UserProfile {
   List<AIProvider>? aiProviders;
   List<MacroGoal>? weeklyGoals;
 }
+
+extension UserProfileGoalsExtension on UserProfile {
+  MacroGoal? getGoalForDay(int dayOfWeek) {
+    if (weeklyGoals == null) return null;
+    return weeklyGoals!.firstWhere((goal) => goal.dayOfWeek == dayOfWeek, orElse: () => null as MacroGoal);
+  }
+
+  int getTdeeGoalForDay(int dayOfWeek) {
+    final dayGoal = getGoalForDay(dayOfWeek);
+    return dayGoal?.tdeeGoal ?? tdeeGoal ?? 2000;
+  }
+
+  double getProteinGoalForDay(int dayOfWeek) {
+    final dayGoal = getGoalForDay(dayOfWeek);
+    if (dayGoal?.proteinGoal != null) return dayGoal!.proteinGoal!;
+    if (proteinGoal != null) return proteinGoal!;
+    
+    final baseGoal = getTdeeGoalForDay(dayOfWeek);
+    final pct = (dayGoal?.proteinPercentage ?? proteinPercentage) / 100;
+    return baseGoal * pct / 4;
+  }
+
+  double getCarbsGoalForDay(int dayOfWeek) {
+    final dayGoal = getGoalForDay(dayOfWeek);
+    if (dayGoal?.carbsGoal != null) return dayGoal!.carbsGoal!;
+    if (carbsGoal != null) return carbsGoal!;
+    
+    final baseGoal = getTdeeGoalForDay(dayOfWeek);
+    final pct = (dayGoal?.carbsPercentage ?? carbsPercentage) / 100;
+    return baseGoal * pct / 4;
+  }
+
+  double getFatGoalForDay(int dayOfWeek) {
+    final dayGoal = getGoalForDay(dayOfWeek);
+    if (dayGoal?.fatGoal != null) return dayGoal!.fatGoal!;
+    if (fatGoal != null) return fatGoal!;
+    
+    final baseGoal = getTdeeGoalForDay(dayOfWeek);
+    final pct = (dayGoal?.fatPercentage ?? fatPercentage) / 100;
+    return baseGoal * pct / 9;
+  }
+
+  double getFiberGoalForDay(int dayOfWeek) {
+    final dayGoal = getGoalForDay(dayOfWeek);
+    return dayGoal?.fiberGoal ?? fiberGoal ?? 30.0;
+  }
+
+  double getSugarGoalForDay(int dayOfWeek) {
+    final dayGoal = getGoalForDay(dayOfWeek);
+    return dayGoal?.sugarGoal ?? sugarGoal ?? 50.0;
+  }
+
+  double getSodiumGoalForDay(int dayOfWeek) {
+    final dayGoal = getGoalForDay(dayOfWeek);
+    return dayGoal?.sodiumGoal ?? sodiumGoal ?? 2300.0;
+  }
+}

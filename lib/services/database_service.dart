@@ -1,6 +1,8 @@
 import 'package:isar/isar.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:calorize/data/models/user_profile.dart';
+import 'package:calorize/data/models/ai_provider.dart';
+import 'package:calorize/data/models/macro_goal.dart';
 import 'package:calorize/data/models/food_log.dart';
 import 'package:calorize/data/models/daily_stat.dart';
 import 'package:calorize/services/background_service.dart';
@@ -170,12 +172,12 @@ class DatabaseService {
     
     stat.rolloverFromPreviousDay = rolloverFromYesterday;
     
-    // Calculate success based on BASE goal (Option A)
-    final baseGoal = profile.tdeeGoal ?? 2000;
+    // Calculate success based on DAY goal
+    final baseGoal = profile.getTdeeGoalForDay(dateOnly.weekday);
     final tolerance = profile.successTolerance;
     final actualCalories = stat.totalCalories;
     
-    // Success = within tolerance of BASE goal
+    // Success = within tolerance of DAY goal
     stat.goalMetWithinRange = (actualCalories > 0) &&
         (actualCalories >= baseGoal - tolerance) &&
         (actualCalories <= baseGoal + tolerance);
@@ -197,9 +199,6 @@ class DatabaseService {
     final profile = await getUserProfile();
     if (profile == null) return 0;
     
-    final calorieGoal = profile.tdeeGoal ?? 0;
-    if (calorieGoal == 0) return 0;
-    
     final stats = await isar.dailyStats.where().sortByDateDesc().findAll();
     if (stats.isEmpty) return 0;
 
@@ -207,12 +206,12 @@ class DatabaseService {
     final todayDate = DateTime(today.year, today.month, today.day);
     final yesterdayDate = todayDate.subtract(const Duration(days: 1));
 
-    final baseGoal = profile.tdeeGoal ?? 2000;
     final tolerance = profile.successTolerance;
 
     final datesMetGoal = stats
         .where((stat) {
           final actualCalories = stat.totalCalories;
+          final baseGoal = profile.getTdeeGoalForDay(stat.date.weekday);
           return (actualCalories > 0) &&
               (actualCalories >= baseGoal - tolerance) &&
               (actualCalories <= baseGoal + tolerance);
@@ -260,7 +259,6 @@ class DatabaseService {
     final Map<DateTime, bool> status = {};
     
     // Default values if profile is missing
-    final baseGoal = profile?.tdeeGoal ?? 2000;
     final tolerance = profile?.successTolerance ?? 50;
 
     for (var stat in stats) {
@@ -268,6 +266,7 @@ class DatabaseService {
       
       // Dynamic calculation to ensure settings changes are reflected immediately
       final actualCalories = stat.totalCalories;
+      final baseGoal = profile?.getTdeeGoalForDay(date.weekday) ?? 2000;
       final isSuccess = (actualCalories > 0) &&
           (actualCalories >= baseGoal - tolerance) &&
           (actualCalories <= baseGoal + tolerance);
