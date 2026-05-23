@@ -1,4 +1,6 @@
 import 'package:isar/isar.dart';
+import 'ai_provider.dart';
+import 'macro_goal.dart';
 
 part 'user_profile.g.dart';
 
@@ -52,4 +54,7 @@ class UserProfile {
   int breakfastTime = 480; // 8:00 AM in minutes from midnight
   int lunchTime = 780;     // 1:00 PM
   int dinnerTime = 1140;   // 7:00 PM
+
+  List<AIProvider>? aiProviders;
+  List<MacroGoal>? weeklyGoals;
 }

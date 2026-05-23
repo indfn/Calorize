@@ -22,53 +22,53 @@ void main() {
         age: 30,
         gender: 'Female',
       );
-      expect(bmr, 1320.25);
+      expect(bmr, 1320);
     });
 
     test('Calculate TDEE (Moderate Activity)', () {
       final tdee = MacroCalculator.calculateTDEE(
         bmr: 1800,
-        activityLevel: ActivityLevel.moderate,
+        activityLevel: 'Moderate',
       );
       // 1800 * 1.55 = 2790
       expect(tdee, 2790);
     });
 
-    test('Calculate Macros for Muscle Gain (Protein Prioritization)', () {
-      // 80kg Male, TDEE 2800
-      // Target Calories = 2800 + 250 = 3050
-      // Protein = 80 * 2.0 = 160g (640 cal)
-      // Fat = 80 * 0.8 = 64g (576 cal)
-      // Remaining for Carbs = 3050 - 1216 = 1834 cal -> 458.5g
-      
+    test('Calculate Macros for High Protein', () {
       final macros = MacroCalculator.calculateMacros(
-        tdee: 2800,
+        targetCalories: 3050,
         weightKg: 80,
-        goal: Goal.buildMuscle,
+        goalType: 'gain',
+        gender: 'Male',
+        age: 25,
+        dietPreference: 'High Protein',
       );
 
-      expect(macros['protein'], 160.0);
-      expect(macros['fat'], 64.0);
-      expect(macros['carbs'], 458.5);
+      // carbsRatio = 0.43 -> 3050 * 0.43 / 4 = 327.9
+      // proteinRatio = 0.35 -> 3050 * 0.35 / 4 = 266.9
+      // fatRatio = 0.22 -> 3050 * 0.22 / 9 = 74.6
+      expect(macros['protein'], 266.9);
+      expect(macros['fat'], 74.6);
+      expect(macros['carbs'], 327.9);
       expect(macros['calories'], 3050.0);
     });
 
-    test('Calculate Macros for Weight Loss (Standard Split)', () {
-      // TDEE 2500
-      // Target = 2000
-      // Protein 40% = 800 cal / 4 = 200g
-      // Fat 30% = 600 cal / 9 = 66.7g
-      // Carbs 30% = 600 cal / 4 = 150g
-      
+    test('Calculate Macros for Balanced', () {
       final macros = MacroCalculator.calculateMacros(
-        tdee: 2500,
+        targetCalories: 2000,
         weightKg: 80,
-        goal: Goal.loseWeight,
+        goalType: 'lose',
+        gender: 'Female',
+        age: 30,
+        dietPreference: 'Balanced',
       );
 
-      expect(macros['protein'], 200.0);
-      expect(macros['fat'], 66.7);
-      expect(macros['carbs'], 150.0);
+      // carbsRatio = 0.49 -> 2000 * 0.49 / 4 = 245.0
+      // proteinRatio = 0.26 -> 2000 * 0.26 / 4 = 130.0
+      // fatRatio = 0.25 -> 2000 * 0.25 / 9 = 55.6
+      expect(macros['protein'], 130.0);
+      expect(macros['fat'], 55.6);
+      expect(macros['carbs'], 245.0);
       expect(macros['calories'], 2000.0);
     });
   });
