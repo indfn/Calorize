@@ -14,6 +14,7 @@ import 'package:calorize/screens/settings/ai_providers_screen.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -25,6 +26,11 @@ class SettingsScreen extends StatefulWidget {
 class _SettingsScreenState extends State<SettingsScreen> {
   UserProfile? _userProfile;
   bool _isLoading = true;
+  bool _hasUnsavedChanges = false;
+  int? _suggestedTdee;
+  int? _suggestedProtein;
+  int? _suggestedCarbs;
+  int? _suggestedFat;
 
   @override
   void initState() {
@@ -123,6 +129,139 @@ class _SettingsScreenState extends State<SettingsScreen> {
     setState(() {}); 
   }
 
+  Future<void> _lightSaveProfile() async {
+    final isar = DatabaseService().isar;
+    await isar.writeTxn(() => isar.userProfiles.put(_userProfile!));
+  }
+
+  void _calculateSuggested() {
+    if (_userProfile == null ||
+        _userProfile!.dob == null ||
+        _userProfile!.weight == null ||
+        _userProfile!.height == null ||
+        _userProfile!.gender == null ||
+        _userProfile!.activityLevel == null) return;
+    final age = MacroCalculator.calculateAge(_userProfile!.dob!);
+    final bmr = MacroCalculator.calculateBMR(
+      weightKg: _userProfile!.weight!,
+      heightCm: _userProfile!.height!,
+      age: age,
+      gender: _userProfile!.gender!,
+    );
+    final tdee = MacroCalculator.calculateTDEE(
+      bmr: bmr,
+      activityLevel: _userProfile!.activityLevel!,
+    );
+    _suggestedTdee = MacroCalculator.calculateDailyTarget(
+      tdee: tdee,
+      goalType: _userProfile!.goalType!,
+      weightLossRate: _userProfile!.weightLossRate ?? 0.5,
+    );
+    final ratios = MacroCalculator.getRatiosForDiet(_userProfile!.dietPreference ?? 'Balanced');
+    _suggestedProtein = ((_suggestedTdee! * ratios['protein']!) / 4).round();
+    _suggestedCarbs = ((_suggestedTdee! * ratios['carbs']!) / 4).round();
+    _suggestedFat = ((_suggestedTdee! * ratios['fat']!) / 9).round();
+  }
+
+  Future<void> _applyRecalculation(BuildContext ctx, {required bool applyToAllDays}) async {
+    final oldTdee = _userProfile?.tdeeGoal ?? _suggestedTdee ?? 2000;
+
+    await _updateProfile();
+
+    if (applyToAllDays && _userProfile?.weeklyGoals != null && _userProfile!.weeklyGoals!.isNotEmpty) {
+      final newTdee = _suggestedTdee ?? oldTdee;
+      if (oldTdee > 0 && oldTdee != newTdee) {
+        final ratio = newTdee / oldTdee;
+        for (final goal in _userProfile!.weeklyGoals!) {
+          if (goal.tdeeGoal != null) {
+            goal.tdeeGoal = (goal.tdeeGoal! * ratio).round();
+          }
+        }
+        final isar = DatabaseService().isar;
+        await isar.writeTxn(() => isar.userProfiles.put(_userProfile!));
+      }
+    }
+
+    if (ctx.mounted) Navigator.pop(ctx);
+    setState(() {
+      _hasUnsavedChanges = false;
+      _suggestedTdee = null;
+      _suggestedProtein = null;
+      _suggestedCarbs = null;
+      _suggestedFat = null;
+    });
+  }
+
+  void _showRecalculationSheet() {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (ctx) {
+        final scheme = Theme.of(ctx).colorScheme;
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Suggested Goals',
+                  style: GoogleFonts.inter(fontSize: 20, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 16),
+                _buildSuggestionRow('Calories', '$_suggestedTdee kcal', scheme),
+                const SizedBox(height: 8),
+                _buildSuggestionRow('Protein', '${_suggestedProtein ?? 0}g', scheme),
+                const SizedBox(height: 8),
+                _buildSuggestionRow('Carbs', '${_suggestedCarbs ?? 0}g', scheme),
+                const SizedBox(height: 8),
+                _buildSuggestionRow('Fat', '${_suggestedFat ?? 0}g', scheme),
+                const SizedBox(height: 24),
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton(
+                        onPressed: () => _applyRecalculation(ctx, applyToAllDays: false),
+                        child: const Text('Apply to Today'),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: FilledButton(
+                        onPressed: () => _applyRecalculation(ctx, applyToAllDays: true),
+                        child: const Text('Apply to All Days'),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Center(
+                  child: TextButton(
+                    onPressed: () => Navigator.pop(ctx),
+                    child: const Text('Dismiss'),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildSuggestionRow(String label, String value, ColorScheme scheme) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(label, style: GoogleFonts.inter(fontSize: 14, color: scheme.onSurfaceVariant)),
+        Text(value, style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w600)),
+      ],
+    );
+  }
+
   Future<void> _updateTheme(String mode) async {
     setState(() => _userProfile!.themeMode = mode);
     final isar = DatabaseService().isar;
@@ -134,316 +273,544 @@ class _SettingsScreenState extends State<SettingsScreen> {
     }
   }
 
+  // ---------------------------------------------------------------------------
+  // NEW CARD-BASED LAYOUT HELPERS
+  // ---------------------------------------------------------------------------
+
+  Widget _buildSectionCard({required Widget child, ColorScheme? scheme}) {
+    final s = scheme ?? Theme.of(context).colorScheme;
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: s.surfaceContainerHighest.withValues(alpha: 0.3),
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: s.outlineVariant.withValues(alpha: 0.3)),
+      ),
+      child: child,
+    );
+  }
+
+  Widget _buildFieldRow(String label, String value, ColorScheme scheme, {VoidCallback? onTap}) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(8),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 12),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(label, style: GoogleFonts.inter(fontSize: 15, color: scheme.onSurfaceVariant)),
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(value, style: GoogleFonts.inter(fontSize: 15, fontWeight: FontWeight.w500)),
+                const SizedBox(width: 4),
+                Icon(Icons.chevron_right, size: 18, color: scheme.onSurfaceVariant),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildNavRow(String label, ColorScheme scheme, {String? subtitle, required VoidCallback onTap}) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(8),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 12),
+        child: Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(label, style: GoogleFonts.inter(fontSize: 15, fontWeight: FontWeight.w500)),
+                  if (subtitle != null) ...[
+                    const SizedBox(height: 2),
+                    Text(subtitle, style: GoogleFonts.inter(fontSize: 12, color: scheme.onSurfaceVariant)),
+                  ],
+                ],
+              ),
+            ),
+            Icon(Icons.chevron_right, size: 20, color: scheme.onSurfaceVariant),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSectionDivider(ColorScheme scheme) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 0),
+      child: Divider(height: 1, thickness: 0.5, color: scheme.outlineVariant.withValues(alpha: 0.3)),
+    );
+  }
+
+  Widget _buildRecalBanner(ColorScheme scheme) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: scheme.primaryContainer.withValues(alpha: 0.3),
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: scheme.primary.withValues(alpha: 0.3)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.auto_awesome, size: 20, color: scheme.primary),
+              const SizedBox(width: 8),
+              Text(
+                'Suggested goals available',
+                style: GoogleFonts.inter(fontWeight: FontWeight.w600, fontSize: 15),
+              ),
+              const Spacer(),
+              IconButton(
+                icon: Icon(Icons.close, size: 18),
+                onPressed: () => setState(() => _hasUnsavedChanges = false),
+                visualDensity: VisualDensity.compact,
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'New goals: $_suggestedTdee cal/day  ·  P${_suggestedProtein ?? 0}g  ·  C${_suggestedCarbs ?? 0}g  ·  F${_suggestedFat ?? 0}g',
+            style: GoogleFonts.inter(fontSize: 13, color: scheme.onSurfaceVariant),
+          ),
+          const SizedBox(height: 12),
+          Align(
+            alignment: Alignment.centerRight,
+            child: FilledButton.tonal(
+              onPressed: _showRecalculationSheet,
+              child: const Text('View & Apply'),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildProfileCard(ColorScheme scheme, bool isMetric) {
+    final p = _userProfile!;
+    return _buildSectionCard(
+      scheme: scheme,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('Profile', style: GoogleFonts.inter(fontSize: 18, fontWeight: FontWeight.w600)),
+          const SizedBox(height: 4),
+          Text(
+            'Manage your personal details and body metrics',
+            style: GoogleFonts.inter(fontSize: 13, color: scheme.onSurfaceVariant),
+          ),
+          const SizedBox(height: 8),
+          _buildFieldRow('Gender', p.gender!, scheme, onTap: () {
+            _showOptionsPicker('Gender', ['Male', 'Female'], (val) async {
+              setState(() => p.gender = val);
+              await _lightSaveProfile();
+              _calculateSuggested();
+              if (mounted) setState(() => _hasUnsavedChanges = true);
+            });
+          }),
+          _buildSectionDivider(scheme),
+          _buildFieldRow('Height', _formatHeight(p.height!, isMetric), scheme,
+              onTap: () => _showHeightPicker(isMetric)),
+          _buildSectionDivider(scheme),
+          _buildFieldRow('Weight', _formatWeight(p.weight!, isMetric), scheme,
+              onTap: () => _showWeightPicker(isMetric)),
+          _buildSectionDivider(scheme),
+          _buildFieldRow('Activity Level', p.activityLevel!, scheme, onTap: () {
+            _showOptionsPicker('Activity Level', ['Sedentary', 'Light', 'Moderate', 'Active', 'Very Active', 'Extra Active'], (val) async {
+              setState(() => p.activityLevel = val);
+              await _lightSaveProfile();
+              _calculateSuggested();
+              if (mounted) setState(() => _hasUnsavedChanges = true);
+            });
+          }),
+          _buildSectionDivider(scheme),
+          _buildFieldRow('Goal', p.goalType!.toUpperCase(), scheme, onTap: () {
+            _showOptionsPicker('Goal', ['LOSE', 'MAINTAIN', 'GAIN'], (val) async {
+              final newGoal = val.toLowerCase();
+              setState(() {
+                p.goalType = newGoal;
+                final currentWeight = p.weight!;
+                final targetWeight = p.targetWeight ?? currentWeight;
+                if (newGoal == 'lose' && targetWeight > currentWeight) p.targetWeight = currentWeight;
+                else if (newGoal == 'gain' && targetWeight < currentWeight) p.targetWeight = currentWeight;
+                else if (newGoal == 'maintain') p.targetWeight = currentWeight;
+              });
+              await _lightSaveProfile();
+              _calculateSuggested();
+              if (mounted) setState(() => _hasUnsavedChanges = true);
+            });
+          }),
+          _buildSectionDivider(scheme),
+          _buildFieldRow('Diet Preference', p.dietPreference ?? 'Balanced', scheme, onTap: () {
+            _showOptionsPicker('Diet Preference', ['Balanced', 'Low Fat', 'Low Carb', 'High Protein', 'Custom'], (val) async {
+              setState(() {
+                p.dietPreference = val;
+                final ratios = MacroCalculator.getRatiosForDiet(val);
+                p.proteinPercentage = (ratios['protein']! * 100);
+                p.carbsPercentage = (ratios['carbs']! * 100);
+                p.fatPercentage = (ratios['fat']! * 100);
+              });
+              await _lightSaveProfile();
+              _calculateSuggested();
+              if (mounted) setState(() => _hasUnsavedChanges = true);
+            });
+          }),
+          _buildSectionDivider(scheme),
+          _buildFieldRow('Target Weight', _formatWeight(p.targetWeight ?? p.weight!, isMetric), scheme,
+              onTap: () => _showTargetWeightPicker(isMetric)),
+          if (p.goalType != 'maintain') ...[
+            _buildSectionDivider(scheme),
+            _buildFieldRow('Weekly Pace', _formatWeeklyPace(p.weightLossRate ?? 0.5, isMetric), scheme,
+                onTap: () => _showWeeklyPacePicker(isMetric)),
+          ],
+          _buildSectionDivider(scheme),
+          _buildNavRow('AI Providers', scheme,
+            subtitle: p.aiProviders != null && p.aiProviders!.isNotEmpty
+                ? '${p.aiProviders!.length} provider(s) configured'
+                : 'Not Configured',
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const AiProvidersScreen()),
+              ).then((_) => _loadProfile());
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildGoalsMacrosCard(ColorScheme scheme) {
+    return _buildSectionCard(
+      scheme: scheme,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('Goals & Macros', style: GoogleFonts.inter(fontSize: 18, fontWeight: FontWeight.w600)),
+          const SizedBox(height: 4),
+          Text(
+            'Adjust your daily and weekly nutrition targets',
+            style: GoogleFonts.inter(fontSize: 13, color: scheme.onSurfaceVariant),
+          ),
+          const SizedBox(height: 8),
+          _buildNavRow('Customize Weekly Goals', scheme,
+            subtitle: 'Set different goals per day of the week',
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => WeeklyMacrosScreen(profile: _userProfile!),
+                ),
+              ).then((_) => _loadProfile());
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildNotificationsCard(ColorScheme scheme) {
+    final p = _userProfile!;
+    return _buildSectionCard(
+      scheme: scheme,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('Notifications', style: GoogleFonts.inter(fontSize: 18, fontWeight: FontWeight.w600)),
+          const SizedBox(height: 4),
+          Text(
+            'Manage meal reminder alerts',
+            style: GoogleFonts.inter(fontSize: 13, color: scheme.onSurfaceVariant),
+          ),
+          const SizedBox(height: 8),
+          SwitchListTile(
+            contentPadding: EdgeInsets.zero,
+            title: Text('Enable Meal Reminders', style: GoogleFonts.inter(fontSize: 15)),
+            subtitle: Text('Get reminded to log your meals', style: GoogleFonts.inter(fontSize: 12, color: scheme.onSurfaceVariant)),
+            value: p.notificationsEnabled,
+            onChanged: (value) async {
+              setState(() => p.notificationsEnabled = value);
+              final isar = DatabaseService().isar;
+              await isar.writeTxn(() => isar.userProfiles.put(p));
+              await NotificationService().scheduleDailyNotifications(p);
+            },
+          ),
+          if (p.notificationsEnabled) ...[
+            Padding(
+              padding: const EdgeInsets.only(left: 8),
+              child: _buildFieldRow('Breakfast', _formatTime(p.breakfastTime), scheme, onTap: () {
+                _showTimePicker('Select Breakfast Time', p.breakfastTime, (minutes) async {
+                  setState(() => p.breakfastTime = minutes);
+                  final isar = DatabaseService().isar;
+                  await isar.writeTxn(() => isar.userProfiles.put(p));
+                  await NotificationService().scheduleDailyNotifications(p);
+                });
+              }),
+            ),
+            Padding(
+              padding: const EdgeInsets.only(left: 8),
+              child: _buildFieldRow('Lunch', _formatTime(p.lunchTime), scheme, onTap: () {
+                _showTimePicker('Select Lunch Time', p.lunchTime, (minutes) async {
+                  setState(() => p.lunchTime = minutes);
+                  final isar = DatabaseService().isar;
+                  await isar.writeTxn(() => isar.userProfiles.put(p));
+                  await NotificationService().scheduleDailyNotifications(p);
+                });
+              }),
+            ),
+            Padding(
+              padding: const EdgeInsets.only(left: 8),
+              child: _buildFieldRow('Dinner', _formatTime(p.dinnerTime), scheme, onTap: () {
+                _showTimePicker('Select Dinner Time', p.dinnerTime, (minutes) async {
+                  setState(() => p.dinnerTime = minutes);
+                  final isar = DatabaseService().isar;
+                  await isar.writeTxn(() => isar.userProfiles.put(p));
+                  await NotificationService().scheduleDailyNotifications(p);
+                });
+              }),
+            ),
+            const SizedBox(height: 8),
+            _buildNavRow('Notifications not working?', scheme,
+              subtitle: 'Some devices require special permissions. Check the guide for your phone brand.',
+              onTap: () async {
+                final uri = Uri.parse('https://dontkillmyapp.com');
+                try {
+                  await launchUrl(uri, mode: LaunchMode.externalApplication);
+                } catch (e) {
+                  debugPrint('Failed to launch URL: $e');
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Could not open browser. Please visit dontkillmyapp.com manually.')),
+                    );
+                  }
+                }
+              },
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPreferencesCard(ColorScheme scheme) {
+    final p = _userProfile!;
+    return _buildSectionCard(
+      scheme: scheme,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('Preferences', style: GoogleFonts.inter(fontSize: 18, fontWeight: FontWeight.w600)),
+          const SizedBox(height: 4),
+          Text(
+            'Theme, rollover behaviour, and success criteria',
+            style: GoogleFonts.inter(fontSize: 13, color: scheme.onSurfaceVariant),
+          ),
+          const SizedBox(height: 8),
+          SwitchListTile(
+            contentPadding: EdgeInsets.zero,
+            title: Text('Dark Mode', style: GoogleFonts.inter(fontSize: 15)),
+            secondary: Icon(
+              p.themeMode == 'dark' || 
+              (p.themeMode == 'system' && 
+               MediaQuery.platformBrightnessOf(context) == Brightness.dark)
+                  ? Icons.dark_mode 
+                  : Icons.light_mode,
+              color: scheme.onSurfaceVariant,
+            ),
+            value: p.themeMode == 'dark' || 
+                (p.themeMode == 'system' && 
+                 MediaQuery.platformBrightnessOf(context) == Brightness.dark),
+            onChanged: (bool value) {
+              _updateTheme(value ? 'dark' : 'light');
+            },
+          ),
+          _buildSectionDivider(scheme),
+          const SizedBox(height: 4),
+          Text(
+            'Daily Success Criteria',
+            style: GoogleFonts.inter(fontSize: 15, fontWeight: FontWeight.w600),
+          ),
+          const SizedBox(height: 8),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Enable Calorie Rollover', style: GoogleFonts.inter(fontSize: 15)),
+                    Text('Balance calories across days', style: GoogleFonts.inter(fontSize: 12, color: scheme.onSurfaceVariant)),
+                  ],
+                ),
+              ),
+              Switch(
+                value: p.rolloverEnabled,
+                activeColor: scheme.primary,
+                onChanged: (value) async {
+                  setState(() => p.rolloverEnabled = value);
+                  final isar = DatabaseService().isar;
+                  await isar.writeTxn(() => isar.userProfiles.put(p));
+                },
+              ),
+            ],
+          ),
+          if (p.rolloverEnabled) ...[
+            const SizedBox(height: 8),
+            Text(
+              'Rollover Limit: ${p.maxRollover.clamp(50, 200)} cal',
+              style: GoogleFonts.inter(fontSize: 14, color: scheme.onSurfaceVariant),
+            ),
+            Slider(
+              value: p.maxRollover.clamp(50, 200).toDouble(),
+              min: 50, max: 200, divisions: 30,
+              activeColor: scheme.primary,
+              label: '${p.maxRollover} cal',
+              onChanged: (value) { setState(() { p.maxRollover = value.round(); }); },
+              onChangeEnd: (value) async {
+                final isar = DatabaseService().isar;
+                await isar.writeTxn(() => isar.userProfiles.put(p));
+              },
+            ),
+          ],
+          const SizedBox(height: 12),
+          Text(
+            'Success Tolerance: ±${p.successTolerance.clamp(50, 200)} cal',
+            style: GoogleFonts.inter(fontSize: 14, color: scheme.onSurfaceVariant),
+          ),
+          Text(
+            'Range to keep streak alive: Base Goal ± Tolerance',
+            style: GoogleFonts.inter(fontSize: 12, color: scheme.onSurfaceVariant, fontStyle: FontStyle.italic),
+          ),
+          Slider(
+            value: p.successTolerance.clamp(50, 200).toDouble(),
+            min: 50, max: 200, divisions: 30,
+            activeColor: scheme.primary,
+            label: '±${p.successTolerance} cal',
+            onChanged: (value) { setState(() => p.successTolerance = value.round()); },
+            onChangeEnd: (value) async {
+              final isar = DatabaseService().isar;
+              await isar.writeTxn(() => isar.userProfiles.put(p));
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDataManagementCard(ColorScheme scheme) {
+    return _buildSectionCard(
+      scheme: scheme,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('Data Management', style: GoogleFonts.inter(fontSize: 18, fontWeight: FontWeight.w600)),
+          const SizedBox(height: 4),
+          Text(
+            'Export, backup, or reset your data',
+            style: GoogleFonts.inter(fontSize: 13, color: scheme.onSurfaceVariant),
+          ),
+          const SizedBox(height: 8),
+          _buildNavRow('Export Food Logs', scheme,
+            subtitle: 'Share your data as JSON',
+            onTap: _exportFoodLogs,
+          ),
+          _buildSectionDivider(scheme),
+          InkWell(
+            onTap: () {
+              showDialog(
+                context: context,
+                builder: (context) => AlertDialog(
+                  title: const Text('Reset All Data?'),
+                  content: const Text(
+                    'This will delete all your food logs, progress tracking, and reset your profile. This action cannot be undone.',
+                  ),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(context),
+                      child: const Text('Cancel'),
+                    ),
+                    FilledButton(
+                      style: FilledButton.styleFrom(backgroundColor: Colors.red),
+                      onPressed: () async {
+                        await DatabaseService().resetAllData();
+                        if (mounted) {
+                          Navigator.pushNamedAndRemoveUntil(context, '/get-started', (route) => false);
+                        }
+                      },
+                      child: const Text('Reset All Data'),
+                    ),
+                  ],
+                ),
+              );
+            },
+            borderRadius: BorderRadius.circular(8),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 12),
+              child: Row(
+                children: [
+                  Icon(Icons.delete_forever, color: Colors.red, size: 20),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('Reset All Data', style: GoogleFonts.inter(fontSize: 15, fontWeight: FontWeight.w500, color: Colors.red)),
+                        Text('Delete all logs and profile', style: GoogleFonts.inter(fontSize: 12, color: scheme.onSurfaceVariant)),
+                      ],
+                    ),
+                  ),
+                  Icon(Icons.chevron_right, size: 20, color: Colors.red.withValues(alpha: 0.6)),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ---------------------------------------------------------------------------
+  // END NEW CARD-BASED LAYOUT HELPERS
+  // ---------------------------------------------------------------------------
+
   @override
   Widget build(BuildContext context) {
     if (_isLoading) return const Center(child: CircularProgressIndicator());
     if (_userProfile == null) return const Center(child: Text('No Profile Found'));
 
     final isMetric = _userProfile!.isMetric ?? true;
+    final scheme = Theme.of(context).colorScheme;
 
     return Scaffold(
       appBar: AppBar(title: const Text('Settings')),
       body: ListView(
-        padding: const EdgeInsets.all(16),
+        padding: EdgeInsets.only(
+          left: 16,
+          right: 16,
+          top: 16,
+          bottom: MediaQuery.of(context).padding.bottom + 16,
+        ),
         children: [
-          // --- PROFILE ---
-          ExpansionTile(
-            title: const Text('Profile', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-            initiallyExpanded: false,
-            children: [
-              _buildEditableTile('Gender', _userProfile!.gender!, (val) {
-                setState(() => _userProfile!.gender = val);
-                _updateProfile();
-              }, isPicker: true, options: ['Male', 'Female']),
-              
-              _buildEditableTile('Height', _formatHeight(_userProfile!.height!, isMetric), (val) {}, onTap: () => _showHeightPicker(isMetric)),
-              _buildEditableTile('Weight', _formatWeight(_userProfile!.weight!, isMetric), (val) {}, onTap: () => _showWeightPicker(isMetric)),
-              _buildEditableTile('Activity Level', _userProfile!.activityLevel!, (val) {
-                setState(() => _userProfile!.activityLevel = val);
-                _updateProfile();
-              }, isPicker: true, options: ['Sedentary', 'Light', 'Moderate', 'Active', 'Very Active', 'Extra Active']),
-              _buildEditableTile('Goal', _userProfile!.goalType!.toUpperCase(), (val) {
-                final newGoal = val.toLowerCase();
-                setState(() {
-                  _userProfile!.goalType = newGoal;
-                  final currentWeight = _userProfile!.weight!;
-                  final targetWeight = _userProfile!.targetWeight ?? currentWeight;
-                  if (newGoal == 'lose' && targetWeight > currentWeight) _userProfile!.targetWeight = currentWeight;
-                  else if (newGoal == 'gain' && targetWeight < currentWeight) _userProfile!.targetWeight = currentWeight;
-                  else if (newGoal == 'maintain') _userProfile!.targetWeight = currentWeight;
-                });
-                _updateProfile();
-              }, isPicker: true, options: ['LOSE', 'MAINTAIN', 'GAIN']),
-              _buildEditableTile('Diet Preference', _userProfile!.dietPreference ?? 'Balanced', (val) {
-                setState(() {
-                  _userProfile!.dietPreference = val;
-                  final ratios = MacroCalculator.getRatiosForDiet(val);
-                  _userProfile!.proteinPercentage = (ratios['protein']! * 100);
-                  _userProfile!.carbsPercentage = (ratios['carbs']! * 100);
-                  _userProfile!.fatPercentage = (ratios['fat']! * 100);
-                });
-                _updateProfile();
-              }, isPicker: true, options: ['Balanced', 'Low Fat', 'Low Carb', 'High Protein', 'Custom']),
-              _buildEditableTile('Target Weight', _formatWeight(_userProfile!.targetWeight ?? _userProfile!.weight!, isMetric), (val) {}, onTap: () => _showTargetWeightPicker(isMetric)),
-              if (_userProfile!.goalType != 'maintain')
-                _buildEditableTile('Weekly Pace', _formatWeeklyPace(_userProfile!.weightLossRate ?? 0.5, isMetric), (val) {}, onTap: () => _showWeeklyPacePicker(isMetric)),
-              ListTile(
-                title: const Text('AI Providers'),
-                subtitle: Text(
-                  _userProfile!.aiProviders != null && _userProfile!.aiProviders!.isNotEmpty
-                      ? '${_userProfile!.aiProviders!.length} provider(s) configured'
-                      : 'Not Configured',
-                ),
-                trailing: const Icon(Icons.chevron_right),
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (_) => const AiProvidersScreen()),
-                  ).then((_) => _loadProfile());
-                },
-              ),
-            ],
-          ),
-          
-          const Divider(),
-
-          // --- MACROS ---
-          ExpansionTile(
-            title: const Text('Adjust Macronutrients', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-            initiallyExpanded: false,
-            children: [
-              ListTile(
-                title: const Text('Customize Weekly Goals'),
-                subtitle: const Text('Set different goals per day of the week'),
-                trailing: const Icon(Icons.chevron_right),
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => WeeklyMacrosScreen(profile: _userProfile!),
-                    ),
-                  ).then((_) => _loadProfile());
-                },
-              ),
-            ],
-          ),
-          
-          const Divider(),
-
-          // --- NOTIFICATIONS (UPDATED) ---
-          ExpansionTile(
-            title: const Text('Notifications', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-            initiallyExpanded: false,
-            children: [
-              SwitchListTile(
-                title: const Text('Enable Meal Reminders'),
-                subtitle: const Text('Get reminded to log your meals'),
-                value: _userProfile!.notificationsEnabled,
-                onChanged: (value) async {
-                  setState(() => _userProfile!.notificationsEnabled = value);
-                  final isar = DatabaseService().isar;
-                  await isar.writeTxn(() => isar.userProfiles.put(_userProfile!));
-                  await NotificationService().scheduleDailyNotifications(_userProfile!);
-                },
-              ),
-              if (_userProfile!.notificationsEnabled) ...[
-                _buildEditableTile('Breakfast Time', _formatTime(_userProfile!.breakfastTime), (val) {}, onTap: () {
-                  _showTimePicker('Select Breakfast Time', _userProfile!.breakfastTime, (minutes) async {
-                    setState(() => _userProfile!.breakfastTime = minutes);
-                    final isar = DatabaseService().isar;
-                    await isar.writeTxn(() => isar.userProfiles.put(_userProfile!));
-                    await NotificationService().scheduleDailyNotifications(_userProfile!);
-                  });
-                }),
-                _buildEditableTile('Lunch Time', _formatTime(_userProfile!.lunchTime), (val) {}, onTap: () {
-                  _showTimePicker('Select Lunch Time', _userProfile!.lunchTime, (minutes) async {
-                    setState(() => _userProfile!.lunchTime = minutes);
-                    final isar = DatabaseService().isar;
-                    await isar.writeTxn(() => isar.userProfiles.put(_userProfile!));
-                    await NotificationService().scheduleDailyNotifications(_userProfile!);
-                  });
-                }),
-                _buildEditableTile('Dinner Time', _formatTime(_userProfile!.dinnerTime), (val) {}, onTap: () {
-                  _showTimePicker('Select Dinner Time', _userProfile!.dinnerTime, (minutes) async {
-                    setState(() => _userProfile!.dinnerTime = minutes);
-                    final isar = DatabaseService().isar;
-                    await isar.writeTxn(() => isar.userProfiles.put(_userProfile!));
-                    await NotificationService().scheduleDailyNotifications(_userProfile!);
-                  });
-                }),
-                const Divider(),
-                ListTile(
-                  leading: Icon(Icons.info_outline, color: Theme.of(context).colorScheme.primary),
-                  title: const Text('Notifications not working?'),
-                  subtitle: const Text(
-                    'Some devices require special permissions. '
-                    'Check dontkillmyapp.com for your phone brand.',
-                    style: TextStyle(fontSize: 12),
-                  ),
-                  onTap: () async {
-                    final uri = Uri.parse('https://dontkillmyapp.com');
-                    try {
-                      await launchUrl(uri, mode: LaunchMode.externalApplication);
-                    } catch (e) {
-                      debugPrint('Failed to launch URL: $e');
-                      if (context.mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Could not open browser. Please visit dontkillmyapp.com manually.')),
-                        );
-                      }
-                    }
-                  },
-                ),
-              ],
-            ],
-          ),
-          
-          const Divider(),
-
-          // --- PREFERENCES ---
-          ExpansionTile(
-            title: const Text('Preferences', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-            initiallyExpanded: false,
-            children: [
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-                child: SwitchListTile(
-                  title: const Text('Dark Mode', style: TextStyle(fontSize: 16)),
-                  secondary: Icon(
-                    _userProfile!.themeMode == 'dark' || 
-                    (_userProfile!.themeMode == 'system' && 
-                     MediaQuery.platformBrightnessOf(context) == Brightness.dark)
-                      ? Icons.dark_mode 
-                      : Icons.light_mode
-                  ),
-                  value: _userProfile!.themeMode == 'dark' || 
-                      (_userProfile!.themeMode == 'system' && 
-                       MediaQuery.platformBrightnessOf(context) == Brightness.dark),
-                  onChanged: (bool value) {
-                    _updateTheme(value ? 'dark' : 'light');
-                  },
-                ),
-              ),
-              const Divider(),
-              const ListTile(
-                title: Text('Daily Success Criteria', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-              ),
-              ListTile(
-                title: const Text('Enable Calorie Rollover'),
-                subtitle: const Text('Balance calories across days'),
-                trailing: Switch(
-                  value: _userProfile!.rolloverEnabled,
-                  onChanged: (value) async {
-                    setState(() => _userProfile!.rolloverEnabled = value);
-                    final isar = DatabaseService().isar;
-                    await isar.writeTxn(() => isar.userProfiles.put(_userProfile!));
-                  },
-                ),
-              ),
-              if (_userProfile!.rolloverEnabled) ...[
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Rollover Limit: ${_userProfile!.maxRollover.clamp(50, 200)} cal',
-                        style: TextStyle(fontSize: 14, color: Theme.of(context).textTheme.bodyMedium?.color),
-                      ),
-                      Slider(
-                        value: _userProfile!.maxRollover.clamp(50, 200).toDouble(),
-                        min: 50, max: 200, divisions: 30,
-                        label: '${_userProfile!.maxRollover} cal',
-                        onChanged: (value) { setState(() { _userProfile!.maxRollover = value.round(); }); },
-                        onChangeEnd: (value) async {
-                          final isar = DatabaseService().isar;
-                          await isar.writeTxn(() => isar.userProfiles.put(_userProfile!));
-                        },
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const SizedBox(height: 16),
-                    Text(
-                      'Success Tolerance: ±${_userProfile!.successTolerance.clamp(50, 200)} cal',
-                      style: TextStyle(fontSize: 14, color: Theme.of(context).textTheme.bodyMedium?.color),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      'Range to keep streak alive: Base Goal ± Tolerance',
-                      style: TextStyle(fontSize: 12, color: Theme.of(context).textTheme.bodySmall?.color, fontStyle: FontStyle.italic),
-                    ),
-                    Slider(
-                      value: _userProfile!.successTolerance.clamp(50, 200).toDouble(),
-                      min: 50, max: 200, divisions: 30,
-                      label: '±${_userProfile!.successTolerance} cal',
-                      onChanged: (value) { setState(() => _userProfile!.successTolerance = value.round()); },
-                      onChangeEnd: (value) async {
-                        final isar = DatabaseService().isar;
-                        await isar.writeTxn(() => isar.userProfiles.put(_userProfile!));
-                      },
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          
-          const Divider(),
-
-          // --- MANAGE DATA ---
-          ExpansionTile(
-            title: const Text('Manage Data', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-            initiallyExpanded: false,
-            children: [
-              ListTile(
-                leading: Icon(Icons.upload_file, color: Theme.of(context).colorScheme.primary),
-                title: const Text('Export Food Logs'),
-                subtitle: const Text('Share your data as JSON'),
-                trailing: const Icon(Icons.chevron_right),
-                onTap: _exportFoodLogs,
-              ),
-              ListTile(
-                leading: const Icon(Icons.delete_forever, color: Colors.red),
-                title: const Text('Reset All Data', style: TextStyle(color: Colors.red)),
-                subtitle: const Text('Delete all logs and profile'),
-                trailing: const Icon(Icons.chevron_right),
-                onTap: () {
-                  showDialog(
-                    context: context,
-                    builder: (context) => AlertDialog(
-                      title: const Text('Reset All Data?'),
-                      content: const Text(
-                        'This will delete all your food logs, progress tracking, and reset your profile. This action cannot be undone.',
-                      ),
-                      actions: [
-                        TextButton(
-                          onPressed: () => Navigator.pop(context),
-                          child: const Text('Cancel'),
-                        ),
-                        FilledButton(
-                          style: FilledButton.styleFrom(backgroundColor: Colors.red),
-                          onPressed: () async {
-                            await DatabaseService().resetAllData();
-                            if (mounted) {
-                              Navigator.pushNamedAndRemoveUntil(context, '/get-started', (route) => false);
-                            }
-                          },
-                          child: const Text('Reset All Data'),
-                        ),
-                      ],
-                    ),
-                  );
-                },
-              ),
-            ],
-          ),
+          if (_hasUnsavedChanges && _suggestedTdee != null)
+            _buildRecalBanner(scheme),
+          _buildProfileCard(scheme, isMetric),
+          const SizedBox(height: 16),
+          _buildGoalsMacrosCard(scheme),
+          const SizedBox(height: 16),
+          _buildNotificationsCard(scheme),
+          const SizedBox(height: 16),
+          _buildPreferencesCard(scheme),
+          const SizedBox(height: 16),
+          _buildDataManagementCard(scheme),
         ],
       ),
     );
@@ -456,7 +823,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       final file = File('${dir.path}/calorize_export_${DateTime.now().millisecondsSinceEpoch}.json');
       await file.writeAsString(json);
       await Share.shareXFiles([XFile(file.path)], text: 'Calorize Food Logs Export');
-      file.delete();
+      await file.delete();
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -486,19 +853,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
       final lbs = kg * 2.20462;
       return '${lbs.toStringAsFixed(1)} lbs';
     }
-  }
-
-  Widget _buildEditableTile(String label, String value, Function(String) onSave, {bool isPicker = false, List<String>? options, VoidCallback? onTap}) {
-    return ListTile(
-      title: Text(label),
-      subtitle: Text(value),
-      trailing: const Icon(Icons.edit, size: 16),
-      onTap: onTap ?? () {
-        if (isPicker && options != null) {
-          _showOptionsPicker(label, options, onSave);
-        }
-      },
-    );
   }
 
   void _showOptionsPicker(String title, List<String> options, Function(String) onSave) {
@@ -639,13 +993,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         child: const Text('Cancel'),
                       ),
                       FilledButton(
-                        onPressed: () {
+                        onPressed: () async {
                           setState(() {
                             _userProfile!.height = currentCm;
                             _userProfile!.isMetric = isMetric;
                           });
-                          _updateProfile();
-                          Navigator.pop(context);
+                          await _lightSaveProfile();
+                          _calculateSuggested();
+                          if (mounted) {
+                            setState(() => _hasUnsavedChanges = true);
+                            Navigator.pop(context);
+                          }
                         },
                         child: const Text('Save'),
                       ),
@@ -715,13 +1073,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         child: const Text('Cancel'),
                       ),
                       FilledButton(
-                        onPressed: () {
+                        onPressed: () async {
                           setState(() {
                             _userProfile!.weight = currentKg;
                             _userProfile!.isMetric = isMetric;
                           });
-                          _updateProfile();
-                          Navigator.pop(context);
+                          await _lightSaveProfile();
+                          _calculateSuggested();
+                          if (mounted) {
+                            setState(() => _hasUnsavedChanges = true);
+                            Navigator.pop(context);
+                          }
                         },
                         child: const Text('Save'),
                       ),
@@ -844,13 +1206,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         child: const Text('Cancel'),
                       ),
                       FilledButton(
-                        onPressed: () {
+                        onPressed: () async {
                           setState(() {
                             _userProfile!.targetWeight = currentKg;
                             _userProfile!.isMetric = isMetric;
                           });
-                          _updateProfile();
-                          Navigator.pop(context);
+                          await _lightSaveProfile();
+                          _calculateSuggested();
+                          if (mounted) {
+                            setState(() => _hasUnsavedChanges = true);
+                            Navigator.pop(context);
+                          }
                         },
                         child: const Text('Save'),
                       ),
@@ -949,13 +1315,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 child: const Text('Cancel'),
               ),
               FilledButton(
-                onPressed: () {
+                onPressed: () async {
                   setState(() {
                     _userProfile!.weightLossRate = currentKg;
                     _userProfile!.isMetric = isMetric;
                   });
-                  _updateProfile();
-                  Navigator.pop(context);
+                          await _lightSaveProfile();
+                          _calculateSuggested();
+                          if (mounted) {
+                            setState(() => _hasUnsavedChanges = true);
+                            Navigator.pop(context);
+                          }
                 },
                 child: const Text('Save'),
               ),
