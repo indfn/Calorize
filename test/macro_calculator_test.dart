@@ -64,10 +64,10 @@ void main() {
       );
 
       // carbsRatio = 0.49 -> 2000 * 0.49 / 4 = 245.0
-      // proteinRatio = 0.26 -> 2000 * 0.26 / 4 = 130.0
-      // fatRatio = 0.25 -> 2000 * 0.25 / 9 = 55.6
-      expect(macros['protein'], 130.0);
-      expect(macros['fat'], 55.6);
+      // proteinRatio = 0.27 -> 2000 * 0.27 / 4 = 135.0
+      // fatRatio = 0.24 -> 2000 * 0.24 / 9 = 53.3
+      expect(macros['protein'], 135.0);
+      expect(macros['fat'], 53.3);
       expect(macros['carbs'], 245.0);
       expect(macros['calories'], 2000.0);
     });

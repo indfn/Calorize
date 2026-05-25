@@ -4,7 +4,6 @@ import 'package:calorize/widgets/stat_card.dart';
 import 'package:calorize/data/models/user_profile.dart';
 import 'package:calorize/data/models/food_log.dart';
 import 'package:calorize/data/models/daily_stat.dart';
-import 'package:calorize/services/database_service.dart';
 
 class DashboardCarousel extends StatefulWidget {
   final UserProfile? userProfile;
@@ -49,26 +48,6 @@ class _DashboardCarouselState extends State<DashboardCarousel> {
   double get _totalSodium => widget.todayLogs.fold<double>(0, (sum, log) => sum + (log.macros.sodium ?? 0));
 
   // Calculate remaining values
-  int get _caloriesLeft {
-    final weekday = DateTime.now().weekday;
-    final goal = widget.userProfile?.getTdeeGoalForDay(weekday) ?? 0;
-    return goal - _totalCalories;
-  }
-  double get _proteinLeft {
-    final weekday = DateTime.now().weekday;
-    final goal = widget.userProfile?.getProteinGoalForDay(weekday) ?? 0;
-    return goal - _totalProtein;
-  }
-  double get _carbsLeft {
-    final weekday = DateTime.now().weekday;
-    final goal = widget.userProfile?.getCarbsGoalForDay(weekday) ?? 0;
-    return goal - _totalCarbs;
-  }
-  double get _fatLeft {
-    final weekday = DateTime.now().weekday;
-    final goal = widget.userProfile?.getFatGoalForDay(weekday) ?? 0;
-    return goal - _totalFat;
-  }
   double get _fiberLeft {
     final weekday = DateTime.now().weekday;
     final goal = widget.userProfile?.getFiberGoalForDay(weekday) ?? 0;
@@ -211,7 +190,6 @@ class _DashboardCarouselState extends State<DashboardCarousel> {
         ? caloriesGoal + safeRollover.toInt()
         : caloriesGoal;
         
-    final caloriesLeft = adjustedGoal - _totalCalories;
     final progress = (adjustedGoal > 0) ? (_totalCalories / adjustedGoal).clamp(0.0, 1.0) : 0.0;
 
     return Padding(

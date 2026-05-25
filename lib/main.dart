@@ -6,13 +6,10 @@ import 'package:calorize/providers/theme_provider.dart';
 import 'package:calorize/services/database_service.dart';
 
 import 'package:calorize/screens/onboarding/get_started_screen.dart';
-import 'package:calorize/screens/onboarding/onboarding_screen.dart';
 import 'package:calorize/data/models/user_profile.dart';
-import 'package:isar/isar.dart';
 import 'package:calorize/screens/home_screen.dart';
 
 import 'package:openfoodfacts/openfoodfacts.dart';
-import 'package:home_widget/home_widget.dart';
 import 'package:calorize/screens/camera_logging_screen.dart';
 import 'package:calorize/widgets/food_edit_sheet.dart';
 import 'package:calorize/services/background_service.dart';
@@ -31,12 +28,10 @@ void main() async {
   final userCount = await isar.userProfiles.count();
   
   // Update widgets on app start with latest data
-  if (userCount > 0) {
-    try {
-      await BackgroundService().updateWidgetData();
-    } catch (e) {
-      debugPrint('Failed to update widgets on startup: $e');
-    }
+  try {
+    await BackgroundService().updateWidgetData();
+  } catch (e) {
+    debugPrint('Failed to update widgets on startup: $e');
   }
   
   runApp(MyApp(showOnboarding: userCount == 0));

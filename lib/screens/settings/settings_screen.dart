@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:provider/provider.dart';
@@ -5,10 +6,14 @@ import 'package:calorize/services/database_service.dart';
 import 'package:calorize/data/models/user_profile.dart';
 import 'package:calorize/utils/macro_calculator.dart';
 import 'package:calorize/providers/theme_provider.dart';
-import 'package:calorize/widgets/macro_sliders.dart';
 import 'package:isar/isar.dart';
 import 'package:calorize/services/notification_service.dart';
-import 'package:permission_handler/permission_handler.dart';
+import 'package:calorize/screens/settings/weekly_macros_screen.dart';
+import 'package:calorize/screens/settings/ai_providers_screen.dart';
+
+import 'package:url_launcher/url_launcher.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:share_plus/share_plus.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -67,7 +72,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Future<void> _updateProfile() async {
     if (_userProfile == null) return;
 
-    final age = DateTime.now().year - _userProfile!.dob!.year;
+    final age = MacroCalculator.calculateAge(_userProfile!.dob!);
     final bmr = MacroCalculator.calculateBMR(
       weightKg: _userProfile!.weight!,
       heightCm: _userProfile!.height!,
@@ -86,9 +91,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
     
     // Validate Percentages
     if (_userProfile!.proteinPercentage <= 0 || _userProfile!.carbsPercentage <= 0 || _userProfile!.fatPercentage <= 0) {
-       _userProfile!.proteinPercentage = 30;
-       _userProfile!.carbsPercentage = 40;
-       _userProfile!.fatPercentage = 30;
+      final ratios = MacroCalculator.getRatiosForDiet(_userProfile!.dietPreference ?? 'Balanced');
+      _userProfile!.proteinPercentage = ratios['protein']! * 100;
+      _userProfile!.carbsPercentage = ratios['carbs']! * 100;
+      _userProfile!.fatPercentage = ratios['fat']! * 100;
     }
 
     final micros = MacroCalculator.calculateMacros(
@@ -171,17 +177,31 @@ class _SettingsScreenState extends State<SettingsScreen> {
               _buildEditableTile('Diet Preference', _userProfile!.dietPreference ?? 'Balanced', (val) {
                 setState(() {
                   _userProfile!.dietPreference = val;
-                  if (val == 'High Protein') { _userProfile!.proteinPercentage = 40; _userProfile!.carbsPercentage = 40; _userProfile!.fatPercentage = 20; }
-                  else if (val == 'Low Carb') { _userProfile!.proteinPercentage = 35; _userProfile!.carbsPercentage = 30; _userProfile!.fatPercentage = 35; }
-                  else if (val == 'Low Fat') { _userProfile!.proteinPercentage = 30; _userProfile!.carbsPercentage = 50; _userProfile!.fatPercentage = 20; }
-                  else if (val == 'Balanced') { _userProfile!.proteinPercentage = 30; _userProfile!.carbsPercentage = 40; _userProfile!.fatPercentage = 30; }
+                  final ratios = MacroCalculator.getRatiosForDiet(val);
+                  _userProfile!.proteinPercentage = (ratios['protein']! * 100);
+                  _userProfile!.carbsPercentage = (ratios['carbs']! * 100);
+                  _userProfile!.fatPercentage = (ratios['fat']! * 100);
                 });
                 _updateProfile();
               }, isPicker: true, options: ['Balanced', 'Low Fat', 'Low Carb', 'High Protein', 'Custom']),
               _buildEditableTile('Target Weight', _formatWeight(_userProfile!.targetWeight ?? _userProfile!.weight!, isMetric), (val) {}, onTap: () => _showTargetWeightPicker(isMetric)),
               if (_userProfile!.goalType != 'maintain')
                 _buildEditableTile('Weekly Pace', _formatWeeklyPace(_userProfile!.weightLossRate ?? 0.5, isMetric), (val) {}, onTap: () => _showWeeklyPacePicker(isMetric)),
-              _buildEditableTile('Gemini API Key', _userProfile!.geminiApiKey != null && _userProfile!.geminiApiKey!.isNotEmpty ? 'Configured' : 'Not Configured', (val) {}, onTap: () => _showApiKeyDialog()),
+              ListTile(
+                title: const Text('AI Providers'),
+                subtitle: Text(
+                  _userProfile!.aiProviders != null && _userProfile!.aiProviders!.isNotEmpty
+                      ? '${_userProfile!.aiProviders!.length} provider(s) configured'
+                      : 'Not Configured',
+                ),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const AiProvidersScreen()),
+                  ).then((_) => _loadProfile());
+                },
+              ),
             ],
           ),
           
@@ -193,10 +213,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
             initiallyExpanded: false,
             children: [
               ListTile(
-                title: const Text('Customize Macro Split'),
-                subtitle: Text(_getMacroSplitText()),
+                title: const Text('Customize Weekly Goals'),
+                subtitle: const Text('Set different goals per day of the week'),
                 trailing: const Icon(Icons.chevron_right),
-                onTap: () => _showMacroAdjustmentDialog(),
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => WeeklyMacrosScreen(profile: _userProfile!),
+                    ),
+                  ).then((_) => _loadProfile());
+                },
               ),
             ],
           ),
@@ -220,13 +247,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 },
               ),
               if (_userProfile!.notificationsEnabled) ...[
-                // 🟢 NEW TIMEZONE TILE
-                _buildEditableTile(
-                  'Timezone', 
-                  'UTC${_userProfile!.utcOffset >= 0 ? '+' : ''}${_userProfile!.utcOffset}', 
-                  (val) {}, 
-                  onTap: () => _showTimezonePicker()
-                ),
                 _buildEditableTile('Breakfast Time', _formatTime(_userProfile!.breakfastTime), (val) {}, onTap: () {
                   _showTimePicker('Select Breakfast Time', _userProfile!.breakfastTime, (minutes) async {
                     setState(() => _userProfile!.breakfastTime = minutes);
@@ -251,6 +271,29 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     await NotificationService().scheduleDailyNotifications(_userProfile!);
                   });
                 }),
+                const Divider(),
+                ListTile(
+                  leading: Icon(Icons.info_outline, color: Theme.of(context).colorScheme.primary),
+                  title: const Text('Notifications not working?'),
+                  subtitle: const Text(
+                    'Some devices require special permissions. '
+                    'Check dontkillmyapp.com for your phone brand.',
+                    style: TextStyle(fontSize: 12),
+                  ),
+                  onTap: () async {
+                    final uri = Uri.parse('https://dontkillmyapp.com');
+                    try {
+                      await launchUrl(uri, mode: LaunchMode.externalApplication);
+                    } catch (e) {
+                      debugPrint('Failed to launch URL: $e');
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Could not open browser. Please visit dontkillmyapp.com manually.')),
+                        );
+                      }
+                    }
+                  },
+                ),
               ],
             ],
           ),
@@ -266,8 +309,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
                 child: SwitchListTile(
                   title: const Text('Dark Mode', style: TextStyle(fontSize: 16)),
-                  secondary: Icon(_userProfile!.themeMode == 'dark' ? Icons.dark_mode : Icons.light_mode),
-                  value: _userProfile!.themeMode == 'dark',
+                  secondary: Icon(
+                    _userProfile!.themeMode == 'dark' || 
+                    (_userProfile!.themeMode == 'system' && 
+                     MediaQuery.platformBrightnessOf(context) == Brightness.dark)
+                      ? Icons.dark_mode 
+                      : Icons.light_mode
+                  ),
+                  value: _userProfile!.themeMode == 'dark' || 
+                      (_userProfile!.themeMode == 'system' && 
+                       MediaQuery.platformBrightnessOf(context) == Brightness.dark),
                   onChanged: (bool value) {
                     _updateTheme(value ? 'dark' : 'light');
                   },
@@ -344,138 +395,78 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ],
           ),
           
-          // --- RESET BUTTON ---
-          const SizedBox(height: 32),
-          Center(
-            child: TextButton(
-              onPressed: () {
-                showDialog(
-                  context: context,
-                  builder: (context) => AlertDialog(
-                    title: const Text('Reset All Data?'),
-                    content: const Text(
-                      'This will delete all your food logs, progress tracking, and reset your profile. This action cannot be undone.',
-                    ),
-                    actions: [
-                      TextButton(
-                        onPressed: () => Navigator.pop(context),
-                        child: const Text('Cancel'),
-                      ),
-                      FilledButton(
-                        style: FilledButton.styleFrom(backgroundColor: Colors.red),
-                        onPressed: () async {
-                          await DatabaseService().resetAllData();
-                          if (mounted) {
-                            Navigator.pushNamedAndRemoveUntil(context, '/get-started', (route) => false);
-                          }
-                        },
-                        child: const Text('Reset All Data'),
-                      ),
-                    ],
-                  ),
-                );
-              },
-              child: const Text(
-                'Reset All Data',
-                style: TextStyle(color: Colors.red, fontSize: 16),
+          const Divider(),
+
+          // --- MANAGE DATA ---
+          ExpansionTile(
+            title: const Text('Manage Data', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+            initiallyExpanded: false,
+            children: [
+              ListTile(
+                leading: Icon(Icons.upload_file, color: Theme.of(context).colorScheme.primary),
+                title: const Text('Export Food Logs'),
+                subtitle: const Text('Share your data as JSON'),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: _exportFoodLogs,
               ),
-            ),
-          ),
-          const SizedBox(height: 50),
-        ],
-      ),
-    );
-  }
-
-  // --- HELPER METHODS & PICKERS ---
-
-  void _showTimezonePicker() {
-    // Safety Fallback: If data is corrupted, default to 8 (Singapore)
-    int selectedOffset = _userProfile!.utcOffset;
-    if (selectedOffset < -12 || selectedOffset > 14) {
-      selectedOffset = 8; 
-    }
-
-    // Generate options from UTC-12 to UTC+14
-    final offsets = List.generate(27, (index) => index - 12); 
-
-    showModalBottomSheet(
-      context: context,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setModalState) {
-          return SafeArea(
-            child: SizedBox(
-              height: 300,
-              child: Column(
-                children: [
-                  Padding(
-                    padding: const EdgeInsets.all(16.0),
-                    child: const Text(
-                      'Select Timezone',
-                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                    ),
-                  ),
-                  Expanded(
-                    child: CupertinoPicker(
-                      itemExtent: 32,
-                      scrollController: FixedExtentScrollController(
-                        // Map offset to index: Offset -12 is index 0. 
-                        // So Initial = Selected - (-12) = Selected + 12
-                        initialItem: selectedOffset + 12, 
+              ListTile(
+                leading: const Icon(Icons.delete_forever, color: Colors.red),
+                title: const Text('Reset All Data', style: TextStyle(color: Colors.red)),
+                subtitle: const Text('Delete all logs and profile'),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () {
+                  showDialog(
+                    context: context,
+                    builder: (context) => AlertDialog(
+                      title: const Text('Reset All Data?'),
+                      content: const Text(
+                        'This will delete all your food logs, progress tracking, and reset your profile. This action cannot be undone.',
                       ),
-                      onSelectedItemChanged: (index) {
-                        setModalState(() => selectedOffset = offsets[index]);
-                      },
-                      children: offsets.map((offset) {
-                        final sign = offset >= 0 ? '+' : '';
-                        return Center(child: Text('UTC $sign$offset'));
-                      }).toList(),
-                    ),
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.all(16.0),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                      children: [
+                      actions: [
                         TextButton(
                           onPressed: () => Navigator.pop(context),
                           child: const Text('Cancel'),
                         ),
                         FilledButton(
+                          style: FilledButton.styleFrom(backgroundColor: Colors.red),
                           onPressed: () async {
-                            setState(() => _userProfile!.utcOffset = selectedOffset);
-                            final isar = DatabaseService().isar;
-                            await isar.writeTxn(() => isar.userProfiles.put(_userProfile!));
-                            
-                            // Reschedule immediately with new timezone
-                            await NotificationService().scheduleDailyNotifications(_userProfile!);
-                            
-                            if (mounted) Navigator.pop(context);
+                            await DatabaseService().resetAllData();
+                            if (mounted) {
+                              Navigator.pushNamedAndRemoveUntil(context, '/get-started', (route) => false);
+                            }
                           },
-                          child: const Text('Save'),
+                          child: const Text('Reset All Data'),
                         ),
                       ],
                     ),
-                  ),
-                ],
+                  );
+                },
               ),
-            ),
-          );
-        },
+            ],
+          ),
+        ],
       ),
     );
   }
 
-  String _getMacroSplitText() {
-    final protein = _userProfile!.proteinPercentage;
-    final carbs = _userProfile!.carbsPercentage;
-    final fat = _userProfile!.fatPercentage;
-    
-    if (!protein.isFinite || !carbs.isFinite || !fat.isFinite) {
-      return 'Protein: 30% | Carbs: 40% | Fat: 30%';
+  Future<void> _exportFoodLogs() async {
+    try {
+      final json = await DatabaseService().exportFoodLogsAsJson();
+      final dir = await getTemporaryDirectory();
+      final file = File('${dir.path}/calorize_export_${DateTime.now().millisecondsSinceEpoch}.json');
+      await file.writeAsString(json);
+      await Share.shareXFiles([XFile(file.path)], text: 'Calorize Food Logs Export');
+      file.delete();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Export failed: $e')),
+        );
+      }
     }
-    return 'P: ${protein.round()}% | C: ${carbs.round()}% | F: ${fat.round()}%';
   }
+
+  // --- HELPER METHODS & PICKERS ---
 
   String _formatHeight(double cm, bool isMetric) {
     if (isMetric) {
@@ -972,147 +963,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
           );
         }
       ),
-    );
-  }
-
-  void _showApiKeyDialog() {
-    String currentKey = _userProfile!.geminiApiKey ?? '';
-    
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Gemini API Key'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Text(
-              'Enter your Gemini API Key to enable AI food analysis.',
-              style: TextStyle(fontSize: 12, color: Colors.grey),
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: TextEditingController(text: currentKey),
-              decoration: const InputDecoration(
-                labelText: 'API Key',
-                border: OutlineInputBorder(),
-              ),
-              onChanged: (val) => currentKey = val,
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () {
-              setState(() {
-                _userProfile!.geminiApiKey = currentKey;
-              });
-              _updateProfile();
-              Navigator.pop(context);
-            },
-            child: const Text('Save'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _showMacroAdjustmentDialog() {
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return Dialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
-          ),
-          child: Container(
-            constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.8),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const Expanded(
-                        child: Text(
-                          'Adjust Macronutrients',
-                          style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-                        ),
-                      ),
-                      IconButton(
-                        icon: const Icon(Icons.close),
-                        onPressed: () => Navigator.pop(context),
-                      ),
-                    ],
-                  ),
-                ),
-                const Divider(),
-                Flexible(
-                  child: SingleChildScrollView(
-                    child: MacroSliders(
-                      profile: _userProfile!,
-                      onChanged: (protein, carbs, fat) {
-                        setState(() {
-                          _userProfile!.proteinPercentage = protein;
-                          _userProfile!.carbsPercentage = carbs;
-                          _userProfile!.fatPercentage = fat;
-                        });
-                      },
-                    ),
-                  ),
-                ),
-                const Divider(),
-                Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.end,
-                    children: [
-                      TextButton(
-                        onPressed: () {
-                          _loadProfile();
-                          Navigator.pop(context);
-                        },
-                        child: const Text('Cancel'),
-                      ),
-                      const SizedBox(width: 8),
-                      FilledButton(
-                        onPressed: () async {
-                          _userProfile!.dietPreference = 'Custom';
-                          
-                          final weekday = DateTime.now().weekday;
-                          final tdee = _userProfile!.getTdeeGoalForDay(weekday);
-                          _userProfile!.proteinGoal = (tdee * _userProfile!.proteinPercentage / 100) / 4;
-                          _userProfile!.carbsGoal = (tdee * _userProfile!.carbsPercentage / 100) / 4;
-                          _userProfile!.fatGoal = (tdee * _userProfile!.fatPercentage / 100) / 9;
-                          
-                          final isar = DatabaseService().isar;
-                          await isar.writeTxn(() async {
-                            await isar.userProfiles.put(_userProfile!);
-                          });
-                          
-                          setState(() {}); 
-                          if (mounted) {
-                            Navigator.pop(context);
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(content: Text('Macro split updated successfully!')),
-                            );
-                          }
-                        },
-                        child: const Text('Save'),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-        );
-      },
     );
   }
 

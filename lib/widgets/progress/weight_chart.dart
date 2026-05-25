@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:calorize/data/models/daily_stat.dart';
-import 'package:intl/intl.dart';
 
 class WeightChart extends StatelessWidget {
   final List<DailyStat> stats;

@@ -16,13 +16,11 @@ class DateStrip extends StatefulWidget {
 }
 
 class _DateStripState extends State<DateStrip> {
-  late DateTime _selectedDate;
   late List<DateTime> _currentWeek;
 
   @override
   void initState() {
     super.initState();
-    _selectedDate = DateTime.now();
     _currentWeek = _generateCurrentWeek();
   }
 

@@ -1,10 +1,12 @@
+import 'dart:convert';
+import 'dart:math';
 import 'package:isar/isar.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:calorize/data/models/user_profile.dart';
-import 'package:calorize/data/models/ai_provider.dart';
 import 'package:calorize/data/models/macro_goal.dart';
 import 'package:calorize/data/models/food_log.dart';
 import 'package:calorize/data/models/daily_stat.dart';
+import 'package:calorize/data/models/ai_provider.dart';
 import 'package:calorize/services/background_service.dart';
 import 'package:flutter/foundation.dart';
 
@@ -340,13 +342,195 @@ class DatabaseService {
     return weight / (heightM * heightM);
   }
 
+  Future<void> saveWeeklyGoal(int dayOfWeek, MacroGoal goal) async {
+    final profile = await getUserProfile();
+    if (profile == null) return;
+
+    goal.dayOfWeek = dayOfWeek;
+    profile.weeklyGoals ??= [];
+    final index = profile.weeklyGoals!.indexWhere((g) => g.dayOfWeek == dayOfWeek);
+    if (index >= 0) {
+      profile.weeklyGoals![index] = goal;
+    } else {
+      profile.weeklyGoals!.add(goal);
+    }
+
+    await isar.writeTxn(() => isar.userProfiles.put(profile));
+  }
+
+  Future<void> applyConstantGoals(MacroGoal baseGoal) async {
+    final profile = await getUserProfile();
+    if (profile == null) return;
+
+    profile.weeklyGoals = [];
+    for (int day = 1; day <= 7; day++) {
+      final goal = MacroGoal()
+        ..dayOfWeek = day
+        ..tdeeGoal = baseGoal.tdeeGoal
+        ..proteinGoal = baseGoal.proteinGoal
+        ..carbsGoal = baseGoal.carbsGoal
+        ..fatGoal = baseGoal.fatGoal
+        ..fiberGoal = baseGoal.fiberGoal
+        ..sugarGoal = baseGoal.sugarGoal
+        ..sodiumGoal = baseGoal.sodiumGoal
+        ..proteinPercentage = baseGoal.proteinPercentage
+        ..carbsPercentage = baseGoal.carbsPercentage
+        ..fatPercentage = baseGoal.fatPercentage;
+      profile.weeklyGoals!.add(goal);
+    }
+
+    await isar.writeTxn(() => isar.userProfiles.put(profile));
+  }
+
+  Future<void> clearWeeklyGoals() async {
+    final profile = await getUserProfile();
+    if (profile == null) return;
+
+    profile.weeklyGoals = [];
+    await isar.writeTxn(() => isar.userProfiles.put(profile));
+  }
+
+  Future<List<FoodLog>> getAllFoodLogs() async {
+    return await isar.foodLogs.where().sortByTimestampDesc().findAll();
+  }
+
+  Future<String> exportFoodLogsAsJson() async {
+    final logs = await getAllFoodLogs();
+    final profile = await getUserProfile();
+    final stats = await isar.dailyStats.where().sortByDateDesc().findAll();
+
+    final exportData = {
+      'exportDate': DateTime.now().toIso8601String(),
+      'profile': profile != null ? {
+        'goalType': profile.goalType,
+        'tdeeGoal': profile.tdeeGoal,
+        'proteinGoal': profile.proteinGoal,
+        'carbsGoal': profile.carbsGoal,
+        'fatGoal': profile.fatGoal,
+        'height': profile.height,
+        'weight': profile.weight,
+        'activityLevel': profile.activityLevel,
+      } : null,
+      'foodLogs': logs.map((log) => {
+        'foodName': log.foodName,
+        'calories': log.calories,
+        'protein': log.macros.protein,
+        'carbs': log.macros.carbs,
+        'fat': log.macros.fat,
+        'timestamp': log.timestamp.toIso8601String(),
+      }).toList(),
+      'dailyStats': stats.map((stat) => {
+        'date': stat.date.toIso8601String(),
+        'totalCalories': stat.totalCalories,
+        'totalProtein': stat.totalProtein,
+        'totalCarbs': stat.totalCarbs,
+        'totalFat': stat.totalFat,
+        'goalMetWithinRange': stat.goalMetWithinRange,
+      }).toList(),
+    };
+
+    final encoder = JsonEncoder.withIndent('  ');
+    return encoder.convert(exportData);
+  }
+
+  Future<void> generateSampleData() async {
+    final now = DateTime.now();
+    final random = Random();
+    final sevenDaysAgo = DateTime(now.year, now.month, now.day - 7);
+
+    await isar.writeTxn(() async {
+      await isar.foodLogs.filter()
+          .timestampGreaterThan(sevenDaysAgo)
+          .deleteAll();
+      await isar.dailyStats.filter()
+          .dateGreaterThan(sevenDaysAgo)
+          .deleteAll();
+    });
+
+    final sampleFoods = [
+      {'name': 'Oatmeal with Berries', 'cal': 350, 'p': 12, 'c': 58, 'f': 8},
+      {'name': 'Grilled Chicken Salad', 'cal': 450, 'p': 35, 'c': 15, 'f': 22},
+      {'name': 'Salmon with Rice', 'cal': 550, 'p': 40, 'c': 45, 'f': 18},
+      {'name': 'Greek Yogurt Parfait', 'cal': 280, 'p': 15, 'c': 35, 'f': 8},
+      {'name': 'Turkey Sandwich', 'cal': 400, 'p': 28, 'c': 35, 'f': 14},
+      {'name': 'Protein Smoothie', 'cal': 320, 'p': 25, 'c': 40, 'f': 5},
+      {'name': 'Beef Stir Fry', 'cal': 500, 'p': 35, 'c': 30, 'f': 20},
+      {'name': 'Mixed Nuts', 'cal': 180, 'p': 6, 'c': 8, 'f': 16},
+    ];
+
+    UserProfile profile;
+    final existingProfile = await getUserProfile();
+    if (existingProfile != null) {
+      profile = existingProfile;
+    } else {
+      profile = UserProfile()
+        ..tdeeGoal = 2000
+        ..proteinGoal = 150
+        ..carbsGoal = 250
+        ..fatGoal = 65;
+      await isar.writeTxn(() => isar.userProfiles.put(profile));
+    }
+
+    await isar.writeTxn(() async {
+      for (int day = 6; day >= 0; day--) {
+        final date = DateTime(now.year, now.month, now.day - day);
+        int totalCal = 0;
+        double totalP = 0, totalC = 0, totalF = 0;
+
+        final meals = random.nextInt(3) + 3;
+        for (int m = 0; m < meals; m++) {
+          final food = sampleFoods[random.nextInt(sampleFoods.length)];
+          final timestamp = DateTime(date.year, date.month, date.day,
+              7 + m * 4 + random.nextInt(2), random.nextInt(60));
+
+          final macros = Macros()
+            ..protein = (food['p'] as int).toDouble()
+            ..carbs = (food['c'] as int).toDouble()
+            ..fat = (food['f'] as int).toDouble();
+
+          final log = FoodLog()
+            ..foodName = food['name'] as String
+            ..calories = food['cal'] as int
+            ..macros = macros
+            ..timestamp = timestamp;
+
+          await isar.foodLogs.put(log);
+
+          totalCal += food['cal'] as int;
+          totalP += (food['p'] as int).toDouble();
+          totalC += (food['c'] as int).toDouble();
+          totalF += (food['f'] as int).toDouble();
+        }
+
+        final stat = DailyStat()
+          ..date = date
+          ..totalCalories = totalCal
+          ..totalProtein = totalP
+          ..totalCarbs = totalC
+          ..totalFat = totalF
+          ..goalMetWithinRange = (totalCal - profile.getTdeeGoalForDay(date.weekday)).abs() < 200;
+
+        await isar.dailyStats.put(stat);
+      }
+    });
+  }
+
+  Future<void> saveAiProviders(List<AIProvider> providers) async {
+    final profile = await getUserProfile();
+    if (profile != null) {
+      await isar.writeTxn(() async {
+        profile.aiProviders = providers;
+        await isar.userProfiles.put(profile);
+      });
+    }
+  }
+
   Future<void> resetAllData() async {
     await isar.writeTxn(() async {
       await isar.userProfiles.clear();
       await isar.foodLogs.clear();
       await isar.dailyStats.clear();
     });
-    // Update widgets to clear data
     await BackgroundService().updateWidgetData();
   }
 }

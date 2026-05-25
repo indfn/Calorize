@@ -31,7 +31,7 @@ class CalorieChart extends StatelessWidget {
     // The previous design showed "Total calories" as a header.
     // Let's show the average for the period.
     double totalCals = 0;
-    for (var s in stats) totalCals += s.totalCalories ?? 0;
+    for (var s in stats) totalCals += s.totalCalories;
     double avgCals = stats.isEmpty ? 0 : totalCals / stats.length;
 
     return Column(
@@ -44,7 +44,7 @@ class CalorieChart extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Avg Calories',
+                  'Calories',
                   style: GoogleFonts.inter(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
@@ -107,9 +107,9 @@ class CalorieChart extends StatelessWidget {
     // Calculate max value from data, then round up to nearest 500
     double maxCalories = 0;
     for (var stat in stats) {
-      final protein = stat.totalProtein ?? 0;
-      final carbs = stat.totalCarbs ?? 0;
-      final fat = stat.totalFat ?? 0;
+      final protein = stat.totalProtein;
+      final carbs = stat.totalCarbs;
+      final fat = stat.totalFat;
       final totalCals = (protein * 4) + (carbs * 4) + (fat * 9);
       if (totalCals > maxCalories) maxCalories = totalCals;
     }
@@ -127,10 +127,10 @@ class CalorieChart extends StatelessWidget {
             getTooltipItem: (group, groupIndex, rod, rodIndex) {
               if (groupIndex >= 0 && groupIndex < stats.length) {
                 final stat = stats[groupIndex];
-                final protein = stat.totalProtein ?? 0;
-                final carbs = stat.totalCarbs ?? 0;
-                final fat = stat.totalFat ?? 0;
-                final totalCals = stat.totalCalories ?? 0;
+                final protein = stat.totalProtein;
+                final carbs = stat.totalCarbs;
+                final fat = stat.totalFat;
+                final totalCals = stat.totalCalories;
                 
                 // Show all macros in tooltip
                 return BarTooltipItem(
@@ -216,9 +216,9 @@ class CalorieChart extends StatelessWidget {
         barGroups: stats.asMap().entries.map((e) {
           final index = e.key;
           final stat = e.value;
-          final protein = stat.totalProtein ?? 0;
-          final carbs = stat.totalCarbs ?? 0;
-          final fat = stat.totalFat ?? 0;
+          final protein = stat.totalProtein;
+          final carbs = stat.totalCarbs;
+          final fat = stat.totalFat;
           
           // Calculate calories from each macro
           final fatCals = fat * 9;
@@ -249,10 +249,9 @@ class CalorieChart extends StatelessWidget {
 
   Widget _buildLineChart(BuildContext context) {
     // Determine min/max
-    double minCals = 0;
     double maxCals = 0;
     for (var s in stats) {
-      final val = (s.totalCalories ?? 0).toDouble();
+      final val = s.totalCalories.toDouble();
       if (val > maxCals) maxCals = val;
     }
     maxCals += 500; // Padding
@@ -272,16 +271,16 @@ class CalorieChart extends StatelessWidget {
         lineBarsData: [
           LineChartBarData(
             spots: stats.asMap().entries.map((e) {
-              return FlSpot(e.key.toDouble(), (e.value.totalCalories ?? 0).toDouble());
+              return FlSpot(e.key.toDouble(), e.value.totalCalories.toDouble());
             }).toList(),
             isCurved: true,
             color: Theme.of(context).colorScheme.primary,
             barWidth: 2,
             dotData: const FlDotData(show: false),
-            belowBarData: BarAreaData(
-              show: true,
-              color: Theme.of(context).colorScheme.primary.withOpacity(0.05),
-            ),
+    belowBarData: BarAreaData(
+      show: true,
+      color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.05),
+    ),
           ),
         ],
         lineTouchData: LineTouchData(
@@ -293,7 +292,7 @@ class CalorieChart extends StatelessWidget {
                   final date = stats[index].date;
                   return LineTooltipItem(
                     '${DateFormat('MMM d').format(date)}\n',
-                    TextStyle(color: Theme.of(context).colorScheme.onInverseSurface.withOpacity(0.7), fontSize: 10),
+                    TextStyle(color: Theme.of(context).colorScheme.onInverseSurface.withValues(alpha: 0.7), fontSize: 10),
                     children: [
                       TextSpan(
                         text: '${spot.y.toInt()} cals',

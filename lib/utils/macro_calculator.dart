@@ -1,5 +1,3 @@
-import 'package:calorize/data/models/user_profile.dart';
-
 class MacroCalculator {
   /// Calculates Basal Metabolic Rate (BMR) using Mifflin-St Jeor Equation
   static int calculateBMR({
@@ -66,6 +64,15 @@ class MacroCalculator {
     }
   }
 
+  static int calculateAge(DateTime birthDate) {
+    final now = DateTime.now();
+    int age = now.year - birthDate.year;
+    final hasHadBirthday = now.month > birthDate.month ||
+        (now.month == birthDate.month && now.day >= birthDate.day);
+    if (!hasHadBirthday) age--;
+    return age;
+  }
+
   /// Calculates Weeks to Goal
   static int calculateWeeksToGoal({
     required double currentWeight,
@@ -75,6 +82,20 @@ class MacroCalculator {
     if (rate <= 0) return 0;
     double diff = (currentWeight - targetWeight).abs();
     return (diff / rate).ceil();
+  }
+
+  static Map<String, double> getRatiosForDiet(String dietPreference) {
+    switch (dietPreference) {
+      case 'High Protein':
+        return {'protein': 0.35, 'carbs': 0.43, 'fat': 0.22};
+      case 'Low Carb':
+        return {'protein': 0.31, 'carbs': 0.40, 'fat': 0.29};
+      case 'Low Fat':
+        return {'protein': 0.28, 'carbs': 0.52, 'fat': 0.20};
+      case 'Balanced':
+      default:
+        return {'protein': 0.27, 'carbs': 0.49, 'fat': 0.24};
+    }
   }
 
   // Calculates Macros and Micros
@@ -93,29 +114,25 @@ class MacroCalculator {
     // Ratios based on User Specs
     switch (dietPreference) {
       case 'High Protein':
-        // 40% C / 40% P / 20% F
-        carbsRatio = 0.40;
-        proteinRatio = 0.40;
-        fatRatio = 0.20;
+        carbsRatio = 0.43;
+        proteinRatio = 0.35;
+        fatRatio = 0.22;
         break;
       case 'Low Carb':
-        // 30% C / 35% P / 35% F
-        carbsRatio = 0.30;
-        proteinRatio = 0.35;
-        fatRatio = 0.35;
+        carbsRatio = 0.40;
+        proteinRatio = 0.31;
+        fatRatio = 0.29;
         break;
       case 'Low Fat':
-        // 50% C / 30% P / 20% F
-        carbsRatio = 0.50;
-        proteinRatio = 0.30;
+        carbsRatio = 0.52;
+        proteinRatio = 0.28;
         fatRatio = 0.20;
         break;
       case 'Balanced':
       default:
-        // 40% C / 30% P / 30% F
-        carbsRatio = 0.40;
-        proteinRatio = 0.30;
-        fatRatio = 0.30;
+        carbsRatio = 0.49;
+        proteinRatio = 0.27;
+        fatRatio = 0.24;
         break;
     }
 

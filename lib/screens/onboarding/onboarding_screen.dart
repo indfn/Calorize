@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:calorize/utils/macro_calculator.dart';
 import 'package:calorize/screens/onboarding/plan_review_screen.dart';
+import 'package:calorize/data/models/ai_provider.dart';
 
 class OnboardingScreen extends StatefulWidget {
   const OnboardingScreen({super.key});
@@ -13,7 +14,7 @@ class OnboardingScreen extends StatefulWidget {
 class _OnboardingScreenState extends State<OnboardingScreen> {
   final PageController _pageController = PageController();
   int _currentPage = 0;
-  int _totalPages = 10; // Default, adjusted dynamically
+  int _totalPages = 10;
 
   // Data
   String _gender = 'Male';
@@ -25,9 +26,9 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
 
   String _dietPreference = 'Balanced';
   double _targetWeightKg = 70; 
-  double _weightLossRate = 0.5; // kg/week
+  double _weightLossRate = 0.5;
   bool _rolloverEnabled = false;
-  String _geminiApiKey = '';
+  AIProvider? _aiProvider;
 
   // UI Helpers
   bool _isMetricHeight = true;
@@ -38,18 +39,47 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   int _inches = 7;
   int _lbs = 154;
 
+  // AI Provider form state
+  String _aiProviderPreset = 'google';
+  final _aiApiKeyController = TextEditingController();
+  final _aiNameController = TextEditingController();
+  final _aiModelIdController = TextEditingController();
+
   @override
   void initState() {
     super.initState();
     _updateTotalPages();
+    _selectAiPreset('google');
+  }
+
+  @override
+  void dispose() {
+    _aiApiKeyController.dispose();
+    _aiNameController.dispose();
+    _aiModelIdController.dispose();
+    super.dispose();
+  }
+
+  void _selectAiPreset(String key) {
+    _aiProviderPreset = key;
+    switch (key) {
+      case 'openai':
+        _aiNameController.text = 'OpenAI';
+        _aiModelIdController.text = 'gpt-4o';
+      case 'google':
+        _aiNameController.text = 'Google';
+        _aiModelIdController.text = 'gemini-2.5-flash';
+      case 'anthropic':
+        _aiNameController.text = 'Anthropic';
+        _aiModelIdController.text = 'claude-3-5-sonnet-20241022';
+      case 'custom':
+        _aiNameController.text = '';
+        _aiModelIdController.text = '';
+    }
   }
 
   void _updateTotalPages() {
     setState(() {
-      // Steps: 
-      // 0:Gender, 1:DOB, 2:Height, 3:Weight, 4:Activity, 
-      // 5:DietPref, 6:Goal, 
-      // 7:Target(Skip if maintain), 8:Rate(Skip if maintain), 9:Rollover
       if (_goalType == 'maintain') {
         _totalPages = 9; 
       } else {
@@ -76,8 +106,50 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     );
   }
 
+  void _buildAiProvider() {
+    final key = _aiApiKeyController.text.trim();
+    if (key.isEmpty) {
+      _aiProvider = null;
+      return;
+    }
+
+    String baseUrl;
+    String apiType;
+    switch (_aiProviderPreset) {
+      case 'openai':
+        baseUrl = 'https://api.openai.com/v1';
+        apiType = 'openai';
+      case 'google':
+        baseUrl = 'https://generativelanguage.googleapis.com/v1beta';
+        apiType = 'google';
+      case 'anthropic':
+        baseUrl = 'https://api.anthropic.com/v1';
+        apiType = 'anthropic';
+      default:
+        baseUrl = 'https://api.openai.com/v1';
+        apiType = 'openai';
+    }
+
+    _aiProvider = AIProvider()
+      ..providerId = _aiProviderPreset
+      ..name = _aiNameController.text.isNotEmpty ? _aiNameController.text : _aiProviderPreset
+      ..apiKey = key
+      ..baseUrl = baseUrl
+      ..modelId = _aiModelIdController.text
+      ..apiType = apiType
+      ..isEnabled = true;
+  }
+
+  String _getDefaultModelHint() {
+    switch (_aiProviderPreset) {
+      case 'openai': return 'gpt-4o';
+      case 'google': return 'gemini-2.5-flash';
+      case 'anthropic': return 'claude-3-5-sonnet-20241022';
+      default: return 'gpt-4o';
+    }
+  }
+
   void _finishOnboarding() {
-    // Final conversions just in case
     if (!_isMetricHeight) {
       _heightCm = ((_feet * 12) + _inches) * 2.54;
     }
@@ -85,7 +157,9 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       _weightKg = _lbs * 0.453592;
     }
 
-    final age = DateTime.now().year - _dob.year;
+    _buildAiProvider();
+
+    final age = MacroCalculator.calculateAge(_dob);
     final bmr = MacroCalculator.calculateBMR(
       weightKg: _weightKg,
       heightCm: _heightCm,
@@ -134,7 +208,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
             'weightLossRate': _weightLossRate,
             'rolloverEnabled': _rolloverEnabled,
             'isMetric': _isMetricWeight,
-            'geminiApiKey': _geminiApiKey,
+            'aiProvider': _aiProvider,
           },
         ),
       ),
@@ -143,7 +217,6 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // Filter pages based on goal
     final List<Widget> pages = [
       _buildGenderPage(),
       _buildDobPage(),
@@ -188,6 +261,8 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   }
 
   Widget _buildBottomBar() {
+    final isApiPage = _currentPage == _totalPages - 2;
+
     return Padding(
       padding: const EdgeInsets.all(16.0),
       child: Row(
@@ -200,6 +275,12 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
             )
           else
             const SizedBox.shrink(),
+          if (isApiPage) ...[
+            TextButton(
+              onPressed: () => _finishOnboarding(),
+              child: const Text('Skip'),
+            ),
+          ],
           FilledButton(
             onPressed: _nextPage,
             child: Text(_currentPage == _totalPages - 1 ? 'Finish' : 'Next'),
@@ -330,11 +411,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
               onChanged: (val) {
                 setState(() {
                   _isMetricWeight = !val;
-                  // Update the picker value to match current weight
-                  if (_isMetricWeight) {
-                    // LBS -> KG (already stored in _weightKg, just refresh UI)
-                  } else {
-                    // KG -> LBS
+                  if (!_isMetricWeight) {
                     _lbs = (_weightKg * 2.20462).round();
                   }
                 });
@@ -431,7 +508,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
         _buildSelectionCard('Lose Weight', _goalType == 'lose', () {
           setState(() {
             _goalType = 'lose';
-            _weightLossRate = 0.5; // Reset to safe default
+            _weightLossRate = 0.5;
             _updateTotalPages();
           });
         }),
@@ -444,7 +521,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
         _buildSelectionCard('Build Muscle', _goalType == 'gain', () {
           setState(() {
             _goalType = 'gain';
-            _weightLossRate = 0.25; // Reset to safe default
+            _weightLossRate = 0.25;
             _updateTotalPages();
           });
         }),
@@ -453,41 +530,36 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   }
 
   Widget _buildTargetWeightPage() {
-    // Constrain initial value based on goal
     if (_goalType == 'lose' && _targetWeightKg > _weightKg) {
       _targetWeightKg = _weightKg;
     } else if (_goalType == 'gain' && _targetWeightKg < _weightKg) {
       _targetWeightKg = _weightKg;
     }
 
-    // Calculate ranges for the picker
     int minVal, maxVal;
-    int currentVal; // The value to scroll to
+    int currentVal;
 
     if (_isMetricWeight) {
-      // Metric (KG)
       if (_goalType == 'lose') {
         minVal = 30;
         maxVal = _weightKg.floor();
-      } else { // gain
+      } else {
         minVal = _weightKg.ceil();
         maxVal = 300;
       }
       currentVal = _targetWeightKg.round();
     } else {
-      // Imperial (LBS)
       int weightLbs = (_weightKg * 2.20462).round();
       if (_goalType == 'lose') {
         minVal = 66;
         maxVal = weightLbs;
-      } else { // gain
+      } else {
         minVal = weightLbs;
         maxVal = 660;
       }
       currentVal = (_targetWeightKg * 2.20462).round();
     }
 
-    // Ensure currentVal is within bounds
     if (currentVal < minVal) currentVal = minVal;
     if (currentVal > maxVal) currentVal = maxVal;
 
@@ -506,13 +578,6 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
               onChanged: (val) {
                  setState(() {
                   _isMetricWeight = !val;
-                  // Re-clamp when switching units
-                  if (_isMetricWeight) {
-                    // Lbs -> Kg
-                    // _targetWeightKg is already in Kg, just need to clamp to new integer bounds if needed
-                  } else {
-                    // Kg -> Lbs
-                  }
                 });
               },
             ),
@@ -550,17 +615,12 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
 
 
   Widget _buildRatePage() {
-    // Limits:
-    // Loss: 0.2 - 0.9 kg (0.5 - 2.0 lbs)
-    // Gain: 0.2 - 0.5 kg (0.5 - 1.1 lbs)
     double minRate = 0.2;
     double maxRate = _goalType == 'lose' ? 0.9 : 0.5;
     
-    // Ensure current rate is within bounds
     if (_weightLossRate < minRate) _weightLossRate = minRate;
     if (_weightLossRate > maxRate) _weightLossRate = maxRate;
 
-    // Display values
     String rateDisplay;
     if (_isMetricWeight) {
       rateDisplay = '${_weightLossRate.toStringAsFixed(2)} kg / week';
@@ -569,17 +629,12 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       rateDisplay = '${rateLbs.toStringAsFixed(1)} lbs / week';
     }
 
-    // Calculate divisions
-    // Metric Loss: 0.1 steps (0.2, 0.3 ... 0.9) -> 7 steps
-    // Metric Gain: 0.05 steps (0.2, 0.25 ... 0.5) -> 6 steps
-    // Imperial: 0.1 lbs steps
     int divisions;
     if (_isMetricWeight) {
       divisions = _goalType == 'lose' 
         ? ((maxRate - minRate) / 0.1).round() 
         : ((maxRate - minRate) / 0.05).round();
     } else {
-      // Lbs range
       double minLbs = minRate * 2.20462;
       double maxLbs = maxRate * 2.20462;
       divisions = ((maxLbs - minLbs) / 0.1).round();
@@ -706,41 +761,122 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   }
 
   Widget _buildApiKeyPage() {
-    return Padding(
+    return SingleChildScrollView(
       padding: const EdgeInsets.symmetric(horizontal: 24.0),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
+          const SizedBox(height: 32),
           _buildTitle('Enable AI Features'),
           const Text(
-            'To use the AI Food Scanner, please paste your Gemini API Key below.',
+            'Select an AI provider and paste your API key to enable AI food analysis.',
             textAlign: TextAlign.center,
             style: TextStyle(fontSize: 16, color: Colors.grey),
           ),
-          const SizedBox(height: 32),
+          const SizedBox(height: 24),
+          Row(
+            children: [
+              _buildAiPresetCard('Google', 'google', Icons.auto_awesome),
+              const SizedBox(width: 8),
+              _buildAiPresetCard('OpenAI', 'openai', Icons.smart_toy_outlined),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              _buildAiPresetCard('Anthropic', 'anthropic', Icons.psychology_outlined),
+              const SizedBox(width: 8),
+              _buildAiPresetCard('Custom', 'custom', Icons.build_outlined),
+            ],
+          ),
+          const SizedBox(height: 20),
           TextField(
-            onChanged: (val) => setState(() => _geminiApiKey = val),
+            controller: _aiNameController,
             decoration: InputDecoration(
-              labelText: 'Gemini API Key',
+              labelText: 'Name',
+              hintText: 'My Provider',
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
+          TextField(
+            controller: _aiApiKeyController,
+            obscureText: true,
+            decoration: InputDecoration(
+              labelText: 'API Key',
               hintText: 'Paste your key here',
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
               ),
-              suffixIcon: IconButton(
-                icon: const Icon(Icons.paste),
-                onPressed: () async {
-                  // Clipboard paste logic requires services, simplified for now
-                  // User can long press to paste
-                },
+            ),
+          ),
+          const SizedBox(height: 12),
+          TextField(
+            controller: _aiModelIdController,
+            decoration: InputDecoration(
+              labelText: 'Model ID',
+              hintText: _getDefaultModelHint(),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
               ),
             ),
           ),
           const SizedBox(height: 16),
           const Text(
-            'Your key is stored locally on your device.',
+            'You can skip this and configure providers later in Settings.',
+            textAlign: TextAlign.center,
             style: TextStyle(fontSize: 12, color: Colors.grey),
           ),
+          const SizedBox(height: 32),
         ],
+      ),
+    );
+  }
+
+  Widget _buildAiPresetCard(String label, String key, IconData icon) {
+    final selected = _aiProviderPreset == key;
+
+    return Expanded(
+      child: GestureDetector(
+        onTap: () => setState(() => _selectAiPreset(key)),
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 16),
+          decoration: BoxDecoration(
+            color: selected
+                ? Theme.of(context).primaryColor.withOpacity(0.1)
+                : Theme.of(context).colorScheme.surfaceContainerHighest,
+            border: Border.all(
+              color: selected
+                  ? Theme.of(context).primaryColor
+                  : Colors.transparent,
+              width: 2,
+            ),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Column(
+            children: [
+              Icon(
+                icon,
+                color: selected
+                    ? Theme.of(context).primaryColor
+                    : Theme.of(context).textTheme.bodyMedium?.color,
+              ),
+              const SizedBox(height: 4),
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: selected ? FontWeight.bold : FontWeight.normal,
+                  color: selected
+                      ? Theme.of(context).primaryColor
+                      : Theme.of(context).textTheme.bodyMedium?.color,
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

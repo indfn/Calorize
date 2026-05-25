@@ -14,7 +14,10 @@
     <!-- ============================== -->
     
     <!-- Required to schedule specific times (The toggle in Special Access) -->
-    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
+    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" android:maxSdkVersion="33" />
+
+    <!-- Required for alarmClock mode to wake device -->
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
 
     <!-- Required for Android 13+ to show the banner -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
@@ -100,11 +103,15 @@
 
     </application>
 
-    <!-- Health Connect Visibility -->
+    <!-- Health Connect Visibility + Browser intents -->
     <queries>
         <intent>
             <action android:name="android.intent.action.PROCESS_TEXT"/>
             <data android:mimeType="text/plain"/>
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="https" />
         </intent>
         <package android:name="com.google.android.apps.healthdata" />
     </queries>

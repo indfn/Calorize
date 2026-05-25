@@ -16,6 +16,8 @@ import 'package:calorize/data/models/food_log.dart';
 import 'package:calorize/data/models/daily_stat.dart';
 import 'package:calorize/widgets/food_edit_sheet.dart';
 import 'package:calorize/screens/camera_logging_screen.dart';
+import 'package:calorize/screens/settings/ai_providers_screen.dart';
+import 'package:calorize/widgets/fab_sheet.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -192,94 +194,25 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
+  void _handleManualEntry() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => const FoodEditSheet(),
+    );
+  }
+
   void _showAddOptionsSheet() {
     showModalBottomSheet(
       context: context,
-      backgroundColor: Colors.transparent,
-      builder: (context) => Container(
-        decoration: BoxDecoration(
-          color: Theme.of(context).colorScheme.surface,
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-        ),
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Center(
-              child: Container(
-                width: 40,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: Theme.of(context).dividerColor,
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-            ),
-            const SizedBox(height: 24),
-            ListTile(
-              leading: Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(color: Theme.of(context).colorScheme.surfaceContainerHighest, borderRadius: BorderRadius.circular(8)),
-                child: Icon(Icons.edit, color: Theme.of(context).colorScheme.primary),
-              ),
-              title: Text('Manual Entry', style: GoogleFonts.inter(fontWeight: FontWeight.w600)),
-              onTap: () {
-                Navigator.pop(context);
-                showModalBottomSheet(
-                  context: context,
-                  isScrollControlled: true,
-                  backgroundColor: Colors.transparent,
-                  builder: (context) => const FoodEditSheet(),
-                );
-              },
-            ),
-            const SizedBox(height: 16),
-            Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton.icon(
-                    onPressed: () {
-                      Navigator.pop(context);
-                      _handleBarcodeScan();
-                    },
-                    icon: const Icon(Icons.qr_code_scanner),
-                    label: Text(
-                      'Barcode',
-                      style: GoogleFonts.inter(fontWeight: FontWeight.w600),
-                    ),
-                    style: OutlinedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: FilledButton.icon(
-                    onPressed: () {
-                      Navigator.pop(context);
-                      _handleAiAnalysis();
-                    },
-                    icon: const Icon(Icons.camera_alt),
-                    label: Text(
-                      'Analyze Food',
-                      style: GoogleFonts.inter(fontWeight: FontWeight.w600),
-                    ),
-                    style: FilledButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-          ],
-        ),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (_) => AddOptionsSheet(
+        onManualEntry: _handleManualEntry,
+        onBarcodeScan: _handleBarcodeScan,
+        onAiAnalysis: _handleAiAnalysis,
       ),
     );
   }
@@ -330,7 +263,19 @@ class _DashboardScreenState extends State<DashboardScreen> {
               context: context,
               barrierDismissible: false,
               builder: (context) => const Center(
-                child: CircularProgressIndicator(),
+                child: Card(
+                  child: Padding(
+                    padding: EdgeInsets.all(24),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        CircularProgressIndicator(),
+                        SizedBox(height: 16),
+                        Text('Analyzing image...'),
+                      ],
+                    ),
+                  ),
+                ),
               ),
             );
 
@@ -350,9 +295,24 @@ class _DashboardScreenState extends State<DashboardScreen> {
               }
             } catch (e) {
               if (mounted) {
-                Navigator.pop(context); // Dismiss progress dialog
+                Navigator.pop(context);
                 ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('Analysis failed: $e')),
+                  SnackBar(
+                    content: Text('Analysis failed: $e'),
+                    backgroundColor: Theme.of(context).colorScheme.error,
+                    action: SnackBarAction(
+                      label: 'Configure AI',
+                      textColor: Colors.white,
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const AiProvidersScreen(),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
                 );
               }
             }
@@ -373,15 +333,18 @@ class _DashboardScreenState extends State<DashboardScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      floatingActionButton: FloatingActionButton(
-        backgroundColor: Theme.of(context).brightness == Brightness.dark 
-          ? Colors.white 
-          : Colors.black,
-        foregroundColor: Theme.of(context).brightness == Brightness.dark 
-          ? Colors.black 
-          : Colors.white,
-        onPressed: _showAddOptionsSheet,
-        child: const Icon(Icons.add),
+      floatingActionButton: Padding(
+        padding: const EdgeInsets.only(bottom: 16),
+        child: FloatingActionButton(
+          backgroundColor: Theme.of(context).brightness == Brightness.dark 
+            ? Colors.white 
+            : Colors.black,
+          foregroundColor: Theme.of(context).brightness == Brightness.dark 
+            ? Colors.black 
+            : Colors.white,
+          onPressed: _showAddOptionsSheet,
+          child: const Icon(Icons.add),
+        ),
       ),
       body: Container(
         decoration: BoxDecoration(
@@ -434,108 +397,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         ),
                       );
                     }
-                    final todayLogs = snapshot.data ?? [];
-                    return DashboardCarousel(
-                      userProfile: _userProfile,
-                      todayLogs: todayLogs,
-                      todayStat: _todayStat,
-                    );
-                  },
-                ),
-                const SizedBox(height: 24),
-                const RecentlyUploadedList(),
-                const SizedBox(height: 24),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-                                  } catch (e) {
-                                    if (context.mounted) {
-                                      Navigator.pop(context); // Dismiss progress dialog
-                                      ScaffoldMessenger.of(context).showSnackBar(
-                                        SnackBar(content: Text('Analysis failed: $e')),
-                                      );
-                                    }
-                                  }
-                                }
-                              }
-                            } catch (e) {
-                              if (context.mounted) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(content: Text('Error picking image: $e')),
-                                );
-                              }
-                            }
-                          },
-                          icon: const Icon(Icons.camera_alt),
-                          label: Text(
-                            'Analyze Food',
-                            style: GoogleFonts.inter(fontWeight: FontWeight.w600),
-                          ),
-                          style: FilledButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(vertical: 16),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-                ],
-              ),
-            ),
-          );
-        },
-      ),
-      body: Container(
-        decoration: BoxDecoration(
-          color: Theme.of(context).scaffoldBackgroundColor,
-        ),
-        child: SafeArea(
-          child: SingleChildScrollView(
-            child: Column(
-              children: [
-                const SizedBox(height: 16),
-                // Header Row
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 24.0),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      // Logo & Title
-                      Flexible(
-                        child: Image.asset(
-                          Theme.of(context).brightness == Brightness.dark 
-                            ? 'assets/logo_text_dark.png' 
-                            : 'assets/logo_text.png',
-                          height: 40,
-                          fit: BoxFit.contain,
-                        ),
-                      ),
-                      const SizedBox(width: 16),
-                      // Streak Icon
-                      StreakIcon(
-                        streakCount: _streak,
-                        onTap: _showStreakDetails,
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 24),
-                // Date Strip
-                DateStrip(successStatus: _weeklySuccess),
-                
-                // Rest of the dashboard content will go here
-                const SizedBox(height: 24),
-                StreamBuilder<List<FoodLog>>(
-                  stream: DatabaseService().watchTodayFoodLogs(),
-                  builder: (context, snapshot) {
                     final todayLogs = snapshot.data ?? [];
                     return DashboardCarousel(
                       userProfile: _userProfile,

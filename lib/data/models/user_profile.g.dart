@@ -28,159 +28,164 @@ const UserProfileSchema = CollectionSchema(
       type: IsarType.objectList,
       target: r'AIProvider',
     ),
-    r'breakfastTime': PropertySchema(
+    r'aiRoutingMode': PropertySchema(
       id: 2,
+      name: r'aiRoutingMode',
+      type: IsarType.string,
+    ),
+    r'breakfastTime': PropertySchema(
+      id: 3,
       name: r'breakfastTime',
       type: IsarType.long,
     ),
     r'carbsGoal': PropertySchema(
-      id: 3,
+      id: 4,
       name: r'carbsGoal',
       type: IsarType.double,
     ),
     r'carbsPercentage': PropertySchema(
-      id: 4,
+      id: 5,
       name: r'carbsPercentage',
       type: IsarType.double,
     ),
     r'dietPreference': PropertySchema(
-      id: 5,
+      id: 6,
       name: r'dietPreference',
       type: IsarType.string,
     ),
     r'dietType': PropertySchema(
-      id: 6,
+      id: 7,
       name: r'dietType',
       type: IsarType.string,
     ),
     r'dinnerTime': PropertySchema(
-      id: 7,
+      id: 8,
       name: r'dinnerTime',
       type: IsarType.long,
     ),
     r'dob': PropertySchema(
-      id: 8,
+      id: 9,
       name: r'dob',
       type: IsarType.dateTime,
     ),
     r'fatGoal': PropertySchema(
-      id: 9,
+      id: 10,
       name: r'fatGoal',
       type: IsarType.double,
     ),
     r'fatPercentage': PropertySchema(
-      id: 10,
+      id: 11,
       name: r'fatPercentage',
       type: IsarType.double,
     ),
     r'fiberGoal': PropertySchema(
-      id: 11,
+      id: 12,
       name: r'fiberGoal',
       type: IsarType.double,
     ),
     r'geminiApiKey': PropertySchema(
-      id: 12,
+      id: 13,
       name: r'geminiApiKey',
       type: IsarType.string,
     ),
     r'gender': PropertySchema(
-      id: 13,
+      id: 14,
       name: r'gender',
       type: IsarType.string,
     ),
     r'goalType': PropertySchema(
-      id: 14,
+      id: 15,
       name: r'goalType',
       type: IsarType.string,
     ),
     r'height': PropertySchema(
-      id: 15,
+      id: 16,
       name: r'height',
       type: IsarType.double,
     ),
     r'isMetric': PropertySchema(
-      id: 16,
+      id: 17,
       name: r'isMetric',
       type: IsarType.bool,
     ),
     r'lunchTime': PropertySchema(
-      id: 17,
+      id: 18,
       name: r'lunchTime',
       type: IsarType.long,
     ),
     r'maxRollover': PropertySchema(
-      id: 18,
+      id: 19,
       name: r'maxRollover',
       type: IsarType.long,
     ),
     r'notificationsEnabled': PropertySchema(
-      id: 19,
+      id: 20,
       name: r'notificationsEnabled',
       type: IsarType.bool,
     ),
     r'proteinGoal': PropertySchema(
-      id: 20,
+      id: 21,
       name: r'proteinGoal',
       type: IsarType.double,
     ),
     r'proteinPercentage': PropertySchema(
-      id: 21,
+      id: 22,
       name: r'proteinPercentage',
       type: IsarType.double,
     ),
     r'rolloverEnabled': PropertySchema(
-      id: 22,
+      id: 23,
       name: r'rolloverEnabled',
       type: IsarType.bool,
     ),
     r'sodiumGoal': PropertySchema(
-      id: 23,
+      id: 24,
       name: r'sodiumGoal',
       type: IsarType.double,
     ),
     r'successTolerance': PropertySchema(
-      id: 24,
+      id: 25,
       name: r'successTolerance',
       type: IsarType.long,
     ),
     r'sugarGoal': PropertySchema(
-      id: 25,
+      id: 26,
       name: r'sugarGoal',
       type: IsarType.double,
     ),
     r'targetWeight': PropertySchema(
-      id: 26,
+      id: 27,
       name: r'targetWeight',
       type: IsarType.double,
     ),
     r'tdeeGoal': PropertySchema(
-      id: 27,
+      id: 28,
       name: r'tdeeGoal',
       type: IsarType.long,
     ),
     r'themeMode': PropertySchema(
-      id: 28,
+      id: 29,
       name: r'themeMode',
       type: IsarType.string,
     ),
     r'utcOffset': PropertySchema(
-      id: 29,
+      id: 30,
       name: r'utcOffset',
       type: IsarType.long,
     ),
     r'weeklyGoals': PropertySchema(
-      id: 30,
+      id: 31,
       name: r'weeklyGoals',
       type: IsarType.objectList,
       target: r'MacroGoal',
     ),
     r'weight': PropertySchema(
-      id: 31,
+      id: 32,
       name: r'weight',
       type: IsarType.double,
     ),
     r'weightLossRate': PropertySchema(
-      id: 32,
+      id: 33,
       name: r'weightLossRate',
       type: IsarType.double,
     )
@@ -226,6 +231,12 @@ int _userProfileEstimateSize(
               AIProviderSchema.estimateSize(value, offsets, allOffsets);
         }
       }
+    }
+  }
+  {
+    final value = object.aiRoutingMode;
+    if (value != null) {
+      bytesCount += 3 + value.length * 3;
     }
   }
   {
@@ -289,42 +300,43 @@ void _userProfileSerialize(
     AIProviderSchema.serialize,
     object.aiProviders,
   );
-  writer.writeLong(offsets[2], object.breakfastTime);
-  writer.writeDouble(offsets[3], object.carbsGoal);
-  writer.writeDouble(offsets[4], object.carbsPercentage);
-  writer.writeString(offsets[5], object.dietPreference);
-  writer.writeString(offsets[6], object.dietType);
-  writer.writeLong(offsets[7], object.dinnerTime);
-  writer.writeDateTime(offsets[8], object.dob);
-  writer.writeDouble(offsets[9], object.fatGoal);
-  writer.writeDouble(offsets[10], object.fatPercentage);
-  writer.writeDouble(offsets[11], object.fiberGoal);
-  writer.writeString(offsets[12], object.geminiApiKey);
-  writer.writeString(offsets[13], object.gender);
-  writer.writeString(offsets[14], object.goalType);
-  writer.writeDouble(offsets[15], object.height);
-  writer.writeBool(offsets[16], object.isMetric);
-  writer.writeLong(offsets[17], object.lunchTime);
-  writer.writeLong(offsets[18], object.maxRollover);
-  writer.writeBool(offsets[19], object.notificationsEnabled);
-  writer.writeDouble(offsets[20], object.proteinGoal);
-  writer.writeDouble(offsets[21], object.proteinPercentage);
-  writer.writeBool(offsets[22], object.rolloverEnabled);
-  writer.writeDouble(offsets[23], object.sodiumGoal);
-  writer.writeLong(offsets[24], object.successTolerance);
-  writer.writeDouble(offsets[25], object.sugarGoal);
-  writer.writeDouble(offsets[26], object.targetWeight);
-  writer.writeLong(offsets[27], object.tdeeGoal);
-  writer.writeString(offsets[28], object.themeMode);
-  writer.writeLong(offsets[29], object.utcOffset);
+  writer.writeString(offsets[2], object.aiRoutingMode);
+  writer.writeLong(offsets[3], object.breakfastTime);
+  writer.writeDouble(offsets[4], object.carbsGoal);
+  writer.writeDouble(offsets[5], object.carbsPercentage);
+  writer.writeString(offsets[6], object.dietPreference);
+  writer.writeString(offsets[7], object.dietType);
+  writer.writeLong(offsets[8], object.dinnerTime);
+  writer.writeDateTime(offsets[9], object.dob);
+  writer.writeDouble(offsets[10], object.fatGoal);
+  writer.writeDouble(offsets[11], object.fatPercentage);
+  writer.writeDouble(offsets[12], object.fiberGoal);
+  writer.writeString(offsets[13], object.geminiApiKey);
+  writer.writeString(offsets[14], object.gender);
+  writer.writeString(offsets[15], object.goalType);
+  writer.writeDouble(offsets[16], object.height);
+  writer.writeBool(offsets[17], object.isMetric);
+  writer.writeLong(offsets[18], object.lunchTime);
+  writer.writeLong(offsets[19], object.maxRollover);
+  writer.writeBool(offsets[20], object.notificationsEnabled);
+  writer.writeDouble(offsets[21], object.proteinGoal);
+  writer.writeDouble(offsets[22], object.proteinPercentage);
+  writer.writeBool(offsets[23], object.rolloverEnabled);
+  writer.writeDouble(offsets[24], object.sodiumGoal);
+  writer.writeLong(offsets[25], object.successTolerance);
+  writer.writeDouble(offsets[26], object.sugarGoal);
+  writer.writeDouble(offsets[27], object.targetWeight);
+  writer.writeLong(offsets[28], object.tdeeGoal);
+  writer.writeString(offsets[29], object.themeMode);
+  writer.writeLong(offsets[30], object.utcOffset);
   writer.writeObjectList<MacroGoal>(
-    offsets[30],
+    offsets[31],
     allOffsets,
     MacroGoalSchema.serialize,
     object.weeklyGoals,
   );
-  writer.writeDouble(offsets[31], object.weight);
-  writer.writeDouble(offsets[32], object.weightLossRate);
+  writer.writeDouble(offsets[32], object.weight);
+  writer.writeDouble(offsets[33], object.weightLossRate);
 }
 
 UserProfile _userProfileDeserialize(
@@ -341,43 +353,44 @@ UserProfile _userProfileDeserialize(
     allOffsets,
     AIProvider(),
   );
-  object.breakfastTime = reader.readLong(offsets[2]);
-  object.carbsGoal = reader.readDoubleOrNull(offsets[3]);
-  object.carbsPercentage = reader.readDouble(offsets[4]);
-  object.dietPreference = reader.readStringOrNull(offsets[5]);
-  object.dietType = reader.readStringOrNull(offsets[6]);
-  object.dinnerTime = reader.readLong(offsets[7]);
-  object.dob = reader.readDateTimeOrNull(offsets[8]);
-  object.fatGoal = reader.readDoubleOrNull(offsets[9]);
-  object.fatPercentage = reader.readDouble(offsets[10]);
-  object.fiberGoal = reader.readDoubleOrNull(offsets[11]);
-  object.geminiApiKey = reader.readStringOrNull(offsets[12]);
-  object.gender = reader.readStringOrNull(offsets[13]);
-  object.goalType = reader.readStringOrNull(offsets[14]);
-  object.height = reader.readDoubleOrNull(offsets[15]);
+  object.aiRoutingMode = reader.readStringOrNull(offsets[2]);
+  object.breakfastTime = reader.readLong(offsets[3]);
+  object.carbsGoal = reader.readDoubleOrNull(offsets[4]);
+  object.carbsPercentage = reader.readDouble(offsets[5]);
+  object.dietPreference = reader.readStringOrNull(offsets[6]);
+  object.dietType = reader.readStringOrNull(offsets[7]);
+  object.dinnerTime = reader.readLong(offsets[8]);
+  object.dob = reader.readDateTimeOrNull(offsets[9]);
+  object.fatGoal = reader.readDoubleOrNull(offsets[10]);
+  object.fatPercentage = reader.readDouble(offsets[11]);
+  object.fiberGoal = reader.readDoubleOrNull(offsets[12]);
+  object.geminiApiKey = reader.readStringOrNull(offsets[13]);
+  object.gender = reader.readStringOrNull(offsets[14]);
+  object.goalType = reader.readStringOrNull(offsets[15]);
+  object.height = reader.readDoubleOrNull(offsets[16]);
   object.id = id;
-  object.isMetric = reader.readBoolOrNull(offsets[16]);
-  object.lunchTime = reader.readLong(offsets[17]);
-  object.maxRollover = reader.readLong(offsets[18]);
-  object.notificationsEnabled = reader.readBool(offsets[19]);
-  object.proteinGoal = reader.readDoubleOrNull(offsets[20]);
-  object.proteinPercentage = reader.readDouble(offsets[21]);
-  object.rolloverEnabled = reader.readBool(offsets[22]);
-  object.sodiumGoal = reader.readDoubleOrNull(offsets[23]);
-  object.successTolerance = reader.readLong(offsets[24]);
-  object.sugarGoal = reader.readDoubleOrNull(offsets[25]);
-  object.targetWeight = reader.readDoubleOrNull(offsets[26]);
-  object.tdeeGoal = reader.readLongOrNull(offsets[27]);
-  object.themeMode = reader.readString(offsets[28]);
-  object.utcOffset = reader.readLong(offsets[29]);
+  object.isMetric = reader.readBoolOrNull(offsets[17]);
+  object.lunchTime = reader.readLong(offsets[18]);
+  object.maxRollover = reader.readLong(offsets[19]);
+  object.notificationsEnabled = reader.readBool(offsets[20]);
+  object.proteinGoal = reader.readDoubleOrNull(offsets[21]);
+  object.proteinPercentage = reader.readDouble(offsets[22]);
+  object.rolloverEnabled = reader.readBool(offsets[23]);
+  object.sodiumGoal = reader.readDoubleOrNull(offsets[24]);
+  object.successTolerance = reader.readLong(offsets[25]);
+  object.sugarGoal = reader.readDoubleOrNull(offsets[26]);
+  object.targetWeight = reader.readDoubleOrNull(offsets[27]);
+  object.tdeeGoal = reader.readLongOrNull(offsets[28]);
+  object.themeMode = reader.readString(offsets[29]);
+  object.utcOffset = reader.readLong(offsets[30]);
   object.weeklyGoals = reader.readObjectList<MacroGoal>(
-    offsets[30],
+    offsets[31],
     MacroGoalSchema.deserialize,
     allOffsets,
     MacroGoal(),
   );
-  object.weight = reader.readDoubleOrNull(offsets[31]);
-  object.weightLossRate = reader.readDoubleOrNull(offsets[32]);
+  object.weight = reader.readDoubleOrNull(offsets[32]);
+  object.weightLossRate = reader.readDoubleOrNull(offsets[33]);
   return object;
 }
 
@@ -398,71 +411,73 @@ P _userProfileDeserializeProp<P>(
         AIProvider(),
       )) as P;
     case 2:
-      return (reader.readLong(offset)) as P;
-    case 3:
-      return (reader.readDoubleOrNull(offset)) as P;
-    case 4:
-      return (reader.readDouble(offset)) as P;
-    case 5:
       return (reader.readStringOrNull(offset)) as P;
+    case 3:
+      return (reader.readLong(offset)) as P;
+    case 4:
+      return (reader.readDoubleOrNull(offset)) as P;
+    case 5:
+      return (reader.readDouble(offset)) as P;
     case 6:
       return (reader.readStringOrNull(offset)) as P;
     case 7:
-      return (reader.readLong(offset)) as P;
-    case 8:
-      return (reader.readDateTimeOrNull(offset)) as P;
-    case 9:
-      return (reader.readDoubleOrNull(offset)) as P;
-    case 10:
-      return (reader.readDouble(offset)) as P;
-    case 11:
-      return (reader.readDoubleOrNull(offset)) as P;
-    case 12:
       return (reader.readStringOrNull(offset)) as P;
+    case 8:
+      return (reader.readLong(offset)) as P;
+    case 9:
+      return (reader.readDateTimeOrNull(offset)) as P;
+    case 10:
+      return (reader.readDoubleOrNull(offset)) as P;
+    case 11:
+      return (reader.readDouble(offset)) as P;
+    case 12:
+      return (reader.readDoubleOrNull(offset)) as P;
     case 13:
       return (reader.readStringOrNull(offset)) as P;
     case 14:
       return (reader.readStringOrNull(offset)) as P;
     case 15:
-      return (reader.readDoubleOrNull(offset)) as P;
+      return (reader.readStringOrNull(offset)) as P;
     case 16:
-      return (reader.readBoolOrNull(offset)) as P;
+      return (reader.readDoubleOrNull(offset)) as P;
     case 17:
-      return (reader.readLong(offset)) as P;
+      return (reader.readBoolOrNull(offset)) as P;
     case 18:
       return (reader.readLong(offset)) as P;
     case 19:
-      return (reader.readBool(offset)) as P;
-    case 20:
-      return (reader.readDoubleOrNull(offset)) as P;
-    case 21:
-      return (reader.readDouble(offset)) as P;
-    case 22:
-      return (reader.readBool(offset)) as P;
-    case 23:
-      return (reader.readDoubleOrNull(offset)) as P;
-    case 24:
       return (reader.readLong(offset)) as P;
-    case 25:
+    case 20:
+      return (reader.readBool(offset)) as P;
+    case 21:
       return (reader.readDoubleOrNull(offset)) as P;
+    case 22:
+      return (reader.readDouble(offset)) as P;
+    case 23:
+      return (reader.readBool(offset)) as P;
+    case 24:
+      return (reader.readDoubleOrNull(offset)) as P;
+    case 25:
+      return (reader.readLong(offset)) as P;
     case 26:
       return (reader.readDoubleOrNull(offset)) as P;
     case 27:
-      return (reader.readLongOrNull(offset)) as P;
+      return (reader.readDoubleOrNull(offset)) as P;
     case 28:
-      return (reader.readString(offset)) as P;
+      return (reader.readLongOrNull(offset)) as P;
     case 29:
-      return (reader.readLong(offset)) as P;
+      return (reader.readString(offset)) as P;
     case 30:
+      return (reader.readLong(offset)) as P;
+    case 31:
       return (reader.readObjectList<MacroGoal>(
         offset,
         MacroGoalSchema.deserialize,
         allOffsets,
         MacroGoal(),
       )) as P;
-    case 31:
-      return (reader.readDoubleOrNull(offset)) as P;
     case 32:
+      return (reader.readDoubleOrNull(offset)) as P;
+    case 33:
       return (reader.readDoubleOrNull(offset)) as P;
     default:
       throw IsarError('Unknown property with id $propertyId');
@@ -820,6 +835,160 @@ extension UserProfileQueryFilter
         upper,
         includeUpper,
       );
+    });
+  }
+
+  QueryBuilder<UserProfile, UserProfile, QAfterFilterCondition>
+      aiRoutingModeIsNull() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(const FilterCondition.isNull(
+        property: r'aiRoutingMode',
+      ));
+    });
+  }
+
+  QueryBuilder<UserProfile, UserProfile, QAfterFilterCondition>
+      aiRoutingModeIsNotNull() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(const FilterCondition.isNotNull(
+        property: r'aiRoutingMode',
+      ));
+    });
+  }
+
+  QueryBuilder<UserProfile, UserProfile, QAfterFilterCondition>
+      aiRoutingModeEqualTo(
+    String? value, {
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'aiRoutingMode',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<UserProfile, UserProfile, QAfterFilterCondition>
+      aiRoutingModeGreaterThan(
+    String? value, {
+    bool include = false,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        include: include,
+        property: r'aiRoutingMode',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<UserProfile, UserProfile, QAfterFilterCondition>
+      aiRoutingModeLessThan(
+    String? value, {
+    bool include = false,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.lessThan(
+        include: include,
+        property: r'aiRoutingMode',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<UserProfile, UserProfile, QAfterFilterCondition>
+      aiRoutingModeBetween(
+    String? lower,
+    String? upper, {
+    bool includeLower = true,
+    bool includeUpper = true,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.between(
+        property: r'aiRoutingMode',
+        lower: lower,
+        includeLower: includeLower,
+        upper: upper,
+        includeUpper: includeUpper,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<UserProfile, UserProfile, QAfterFilterCondition>
+      aiRoutingModeStartsWith(
+    String value, {
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.startsWith(
+        property: r'aiRoutingMode',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<UserProfile, UserProfile, QAfterFilterCondition>
+      aiRoutingModeEndsWith(
+    String value, {
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.endsWith(
+        property: r'aiRoutingMode',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<UserProfile, UserProfile, QAfterFilterCondition>
+      aiRoutingModeContains(String value, {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.contains(
+        property: r'aiRoutingMode',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<UserProfile, UserProfile, QAfterFilterCondition>
+      aiRoutingModeMatches(String pattern, {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.matches(
+        property: r'aiRoutingMode',
+        wildcard: pattern,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<UserProfile, UserProfile, QAfterFilterCondition>
+      aiRoutingModeIsEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'aiRoutingMode',
+        value: '',
+      ));
+    });
+  }
+
+  QueryBuilder<UserProfile, UserProfile, QAfterFilterCondition>
+      aiRoutingModeIsNotEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        property: r'aiRoutingMode',
+        value: '',
+      ));
     });
   }
 
@@ -3473,6 +3642,19 @@ extension UserProfileQuerySortBy
     });
   }
 
+  QueryBuilder<UserProfile, UserProfile, QAfterSortBy> sortByAiRoutingMode() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'aiRoutingMode', Sort.asc);
+    });
+  }
+
+  QueryBuilder<UserProfile, UserProfile, QAfterSortBy>
+      sortByAiRoutingModeDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'aiRoutingMode', Sort.desc);
+    });
+  }
+
   QueryBuilder<UserProfile, UserProfile, QAfterSortBy> sortByBreakfastTime() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'breakfastTime', Sort.asc);
@@ -3860,6 +4042,19 @@ extension UserProfileQuerySortThenBy
       thenByActivityLevelDesc() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'activityLevel', Sort.desc);
+    });
+  }
+
+  QueryBuilder<UserProfile, UserProfile, QAfterSortBy> thenByAiRoutingMode() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'aiRoutingMode', Sort.asc);
+    });
+  }
+
+  QueryBuilder<UserProfile, UserProfile, QAfterSortBy>
+      thenByAiRoutingModeDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'aiRoutingMode', Sort.desc);
     });
   }
 
@@ -4260,6 +4455,14 @@ extension UserProfileQueryWhereDistinct
     });
   }
 
+  QueryBuilder<UserProfile, UserProfile, QDistinct> distinctByAiRoutingMode(
+      {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addDistinctBy(r'aiRoutingMode',
+          caseSensitive: caseSensitive);
+    });
+  }
+
   QueryBuilder<UserProfile, UserProfile, QDistinct> distinctByBreakfastTime() {
     return QueryBuilder.apply(this, (query) {
       return query.addDistinctBy(r'breakfastTime');
@@ -4471,6 +4674,12 @@ extension UserProfileQueryProperty
       aiProvidersProperty() {
     return QueryBuilder.apply(this, (query) {
       return query.addPropertyName(r'aiProviders');
+    });
+  }
+
+  QueryBuilder<UserProfile, String?, QQueryOperations> aiRoutingModeProperty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addPropertyName(r'aiRoutingMode');
     });
   }
 

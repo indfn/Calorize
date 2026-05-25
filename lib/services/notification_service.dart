@@ -1,9 +1,10 @@
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:calorize/data/models/user_profile.dart';
+import 'package:flutter_native_timezone/flutter_native_timezone.dart';
 import 'package:timezone/data/latest_all.dart' as tz;
 import 'package:timezone/timezone.dart' as tz;
-// Note: We removed 'flutter_timezone' import because we use manual offsets now.
 
 class NotificationService {
   static final NotificationService _instance = NotificationService._internal();
@@ -11,15 +12,21 @@ class NotificationService {
   NotificationService._internal();
 
   final FlutterLocalNotificationsPlugin _notificationsPlugin = FlutterLocalNotificationsPlugin();
+  bool debugLogsEnabled = false;
 
   Future<void> init() async {
-    // 1. Initialize Timezone Database
     tz.initializeTimeZones();
-    
-    // 2. Set Default to UTC (We will handle offsets manually in the logic)
-    tz.setLocalLocation(tz.getLocation('UTC'));
+    try {
+      final locationName = await FlutterNativeTimezone.getLocalTimezone();
+      tz.setLocalLocation(tz.getLocation(locationName));
+    } catch (e) {
+      debugPrint('⚠️ Could not detect timezone: $e');
+      final offset = DateTime.now().timeZoneOffset;
+      tz.setLocalLocation(tz.getLocation(
+        'Etc/GMT${offset.isNegative ? '+' : '-'}${(offset.inHours).abs()}'
+      ));
+    }
 
-    // 3. Initialize Settings
     const AndroidInitializationSettings initializationSettingsAndroid =
         AndroidInitializationSettings('@mipmap/launcher_icon');
 
@@ -48,15 +55,6 @@ class NotificationService {
         .resolvePlatformSpecificImplementation<
             AndroidFlutterLocalNotificationsPlugin>()
         ?.requestNotificationsPermission();
-
-    final androidPlugin = _notificationsPlugin
-        .resolvePlatformSpecificImplementation<
-            AndroidFlutterLocalNotificationsPlugin>();
-
-    if (androidPlugin != null) {
-      await androidPlugin.requestExactAlarmsPermission();
-    }
-
     return notificationGranted ?? false;
   }
 
@@ -70,14 +68,13 @@ class NotificationService {
     await requestPermissions();
     await cancelAll();
 
-    debugPrint('📅 Scheduling Daily Meals (Offset: UTC${profile.utcOffset >= 0 ? '+' : ''}${profile.utcOffset})...');
+    if (debugLogsEnabled) debugPrint('📅 Scheduling Daily Meals...');
 
     await _scheduleNotification(
       id: 1,
       title: 'Breakfast Time! 🍳',
       body: 'Don\'t forget to log your breakfast.',
       minutesFromMidnight: profile.breakfastTime,
-      utcOffset: profile.utcOffset,
     );
 
     await _scheduleNotification(
@@ -85,7 +82,6 @@ class NotificationService {
       title: 'Lunch Time! 🥗',
       body: 'Time to log your lunch.',
       minutesFromMidnight: profile.lunchTime,
-      utcOffset: profile.utcOffset,
     );
 
     await _scheduleNotification(
@@ -93,7 +89,6 @@ class NotificationService {
       title: 'Dinner Time! 🥩',
       body: 'Remember to log your dinner.',
       minutesFromMidnight: profile.dinnerTime,
-      utcOffset: profile.utcOffset,
     );
   }
 
@@ -102,61 +97,136 @@ class NotificationService {
     required String title,
     required String body,
     required int minutesFromMidnight,
-    required int utcOffset,
   }) async {
+    if (minutesFromMidnight < 0 || minutesFromMidnight > 1439) {
+      debugPrint('❌ Invalid minutesFromMidnight: $minutesFromMidnight');
+      return;
+    }
+
+    final now = tz.TZDateTime.now(tz.local);
+    final scheduledDate = _computeScheduledDate(now, minutesFromMidnight);
+
     try {
-      // 1. Get Current UTC Time
-      final nowUTC = tz.TZDateTime.now(tz.UTC);
-      
-      // 2. Calculate User's "Wall Clock" Time
-      // We simulate what time it is on the user's phone right now
-      final offsetDuration = Duration(hours: utcOffset);
-      final userWallTime = nowUTC.add(offsetDuration);
-
-      // 3. Construct the Target Time for TODAY based on User's Wall Time
-      // Example: If user wants 8:00 AM, we create "Today at 8:00 AM" in their simulated time
-      var targetUserTime = tz.TZDateTime(
-        tz.UTC, // We keep the container UTC for math safety
-        userWallTime.year,
-        userWallTime.month,
-        userWallTime.day,
-        minutesFromMidnight ~/ 60,
-        minutesFromMidnight % 60,
-      );
-
-      // 4. If that time has passed for the user today, add 1 day
-      if (targetUserTime.isBefore(userWallTime)) {
-        targetUserTime = targetUserTime.add(const Duration(days: 1));
-      }
-
-      // 5. Convert back to System UTC for the Alarm Manager
-      // If Target is "8:00 AM User Time", subtract offset to get "0:00 AM UTC"
-      final finalScheduleTime = targetUserTime.subtract(offsetDuration);
-
       await _notificationsPlugin.zonedSchedule(
         id,
         title,
         body,
-        finalScheduleTime, // This is the absolute UTC instant the alarm should ring
+        scheduledDate,
         const NotificationDetails(
           android: AndroidNotificationDetails(
-            'meal_reminders_v2', 
-            'Meal Reminders V2',
+            'meal_reminders_v2',
+            'Meal Reminders',
             channelDescription: 'Reminders to log your meals',
             importance: Importance.max,
             priority: Priority.high,
             icon: '@mipmap/launcher_icon',
           ),
         ),
-        androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
-        uiLocalNotificationDateInterpretation: 
-            UILocalNotificationDateInterpretation.absoluteTime,
+        androidScheduleMode: AndroidScheduleMode.alarmClock,
         matchDateTimeComponents: DateTimeComponents.time,
+        uiLocalNotificationDateInterpretation:
+            UILocalNotificationDateInterpretation.absoluteTime,
       );
-      
-      debugPrint('✅ Scheduled [$title] for $finalScheduleTime (UTC)');
-    } catch (e) {
-      debugPrint('❌ Error scheduling notification $id: $e');
+
+      if (debugLogsEnabled) debugPrint('✅ Scheduled [$title] for $scheduledDate');
+    } on PlatformException catch (e) {
+      if (e.code == 'exact_alarms_not_permitted') {
+        debugPrint('⚠️ Exact alarm not permitted, falling back to inexact for [$title]');
+        try {
+          await _notificationsPlugin.zonedSchedule(
+            id, title, body, scheduledDate,
+            const NotificationDetails(
+              android: AndroidNotificationDetails(
+                'meal_reminders_v2',
+                'Meal Reminders',
+                channelDescription: 'Reminders to log your meals',
+                importance: Importance.max,
+                priority: Priority.high,
+                icon: '@mipmap/launcher_icon',
+              ),
+            ),
+            androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+            matchDateTimeComponents: DateTimeComponents.time,
+            uiLocalNotificationDateInterpretation:
+                UILocalNotificationDateInterpretation.absoluteTime,
+          );
+          if (debugLogsEnabled) debugPrint('✅ Scheduled (inexact) [$title] for $scheduledDate');
+        } catch (e2) {
+          debugPrint('❌ Fallback scheduling also failed for [$title]: $e2');
+        }
+      } else {
+        debugPrint('❌ Error scheduling notification $id: $e');
+      }
+    }
+  }
+
+  tz.TZDateTime _computeScheduledDate(tz.TZDateTime now, int minutesFromMidnight) {
+    var scheduledDate = tz.TZDateTime(
+      tz.local,
+      now.year,
+      now.month,
+      now.day,
+      minutesFromMidnight ~/ 60,
+      minutesFromMidnight % 60,
+    );
+    if (scheduledDate.isBefore(now)) {
+      scheduledDate = scheduledDate.add(const Duration(days: 1));
+    }
+    return scheduledDate;
+  }
+
+  Future<void> scheduleTestNotification() async {
+    final now = tz.TZDateTime.now(tz.local);
+    final scheduledDate = now.add(const Duration(seconds: 5));
+
+    try {
+      await _notificationsPlugin.zonedSchedule(
+        999,
+        'Test Notification 🔔',
+        'This is a test notification from Calorize.',
+        scheduledDate,
+        const NotificationDetails(
+          android: AndroidNotificationDetails(
+            'test_channel',
+            'Test Notifications',
+            channelDescription: 'Test notifications for debugging',
+            importance: Importance.max,
+            priority: Priority.high,
+            icon: '@mipmap/launcher_icon',
+          ),
+        ),
+        androidScheduleMode: AndroidScheduleMode.alarmClock,
+        uiLocalNotificationDateInterpretation:
+            UILocalNotificationDateInterpretation.absoluteTime,
+      );
+      debugPrint('✅ Test notification scheduled for $scheduledDate');
+    } on PlatformException catch (e) {
+      if (e.code == 'exact_alarms_not_permitted') {
+        debugPrint('⚠️ Exact alarm not permitted for test notification, falling back to inexact');
+        await _notificationsPlugin.zonedSchedule(
+          999,
+          'Test Notification 🔔',
+          'This is a test notification from Calorize.',
+          scheduledDate,
+          const NotificationDetails(
+            android: AndroidNotificationDetails(
+              'test_channel',
+              'Test Notifications',
+              channelDescription: 'Test notifications for debugging',
+              importance: Importance.max,
+              priority: Priority.high,
+              icon: '@mipmap/launcher_icon',
+            ),
+          ),
+          androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+          uiLocalNotificationDateInterpretation:
+              UILocalNotificationDateInterpretation.absoluteTime,
+        );
+        debugPrint('✅ Test notification scheduled (inexact) for $scheduledDate');
+      } else {
+        debugPrint('❌ Error scheduling test notification: $e');
+        rethrow;
+      }
     }
   }
 

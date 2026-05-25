@@ -18,23 +18,33 @@ const AIProviderSchema = Schema(
       name: r'apiKey',
       type: IsarType.string,
     ),
-    r'baseUrl': PropertySchema(
+    r'apiType': PropertySchema(
       id: 1,
+      name: r'apiType',
+      type: IsarType.string,
+    ),
+    r'baseUrl': PropertySchema(
+      id: 2,
       name: r'baseUrl',
       type: IsarType.string,
     ),
     r'isEnabled': PropertySchema(
-      id: 2,
+      id: 3,
       name: r'isEnabled',
       type: IsarType.bool,
     ),
     r'modelId': PropertySchema(
-      id: 3,
+      id: 4,
       name: r'modelId',
       type: IsarType.string,
     ),
+    r'name': PropertySchema(
+      id: 5,
+      name: r'name',
+      type: IsarType.string,
+    ),
     r'providerId': PropertySchema(
-      id: 4,
+      id: 6,
       name: r'providerId',
       type: IsarType.string,
     )
@@ -58,6 +68,12 @@ int _aIProviderEstimateSize(
     }
   }
   {
+    final value = object.apiType;
+    if (value != null) {
+      bytesCount += 3 + value.length * 3;
+    }
+  }
+  {
     final value = object.baseUrl;
     if (value != null) {
       bytesCount += 3 + value.length * 3;
@@ -65,6 +81,12 @@ int _aIProviderEstimateSize(
   }
   {
     final value = object.modelId;
+    if (value != null) {
+      bytesCount += 3 + value.length * 3;
+    }
+  }
+  {
+    final value = object.name;
     if (value != null) {
       bytesCount += 3 + value.length * 3;
     }
@@ -85,10 +107,12 @@ void _aIProviderSerialize(
   Map<Type, List<int>> allOffsets,
 ) {
   writer.writeString(offsets[0], object.apiKey);
-  writer.writeString(offsets[1], object.baseUrl);
-  writer.writeBool(offsets[2], object.isEnabled);
-  writer.writeString(offsets[3], object.modelId);
-  writer.writeString(offsets[4], object.providerId);
+  writer.writeString(offsets[1], object.apiType);
+  writer.writeString(offsets[2], object.baseUrl);
+  writer.writeBool(offsets[3], object.isEnabled);
+  writer.writeString(offsets[4], object.modelId);
+  writer.writeString(offsets[5], object.name);
+  writer.writeString(offsets[6], object.providerId);
 }
 
 AIProvider _aIProviderDeserialize(
@@ -99,10 +123,12 @@ AIProvider _aIProviderDeserialize(
 ) {
   final object = AIProvider();
   object.apiKey = reader.readStringOrNull(offsets[0]);
-  object.baseUrl = reader.readStringOrNull(offsets[1]);
-  object.isEnabled = reader.readBoolOrNull(offsets[2]);
-  object.modelId = reader.readStringOrNull(offsets[3]);
-  object.providerId = reader.readStringOrNull(offsets[4]);
+  object.apiType = reader.readStringOrNull(offsets[1]);
+  object.baseUrl = reader.readStringOrNull(offsets[2]);
+  object.isEnabled = reader.readBoolOrNull(offsets[3]);
+  object.modelId = reader.readStringOrNull(offsets[4]);
+  object.name = reader.readStringOrNull(offsets[5]);
+  object.providerId = reader.readStringOrNull(offsets[6]);
   return object;
 }
 
@@ -118,10 +144,14 @@ P _aIProviderDeserializeProp<P>(
     case 1:
       return (reader.readStringOrNull(offset)) as P;
     case 2:
-      return (reader.readBoolOrNull(offset)) as P;
-    case 3:
       return (reader.readStringOrNull(offset)) as P;
+    case 3:
+      return (reader.readBoolOrNull(offset)) as P;
     case 4:
+      return (reader.readStringOrNull(offset)) as P;
+    case 5:
+      return (reader.readStringOrNull(offset)) as P;
+    case 6:
       return (reader.readStringOrNull(offset)) as P;
     default:
       throw IsarError('Unknown property with id $propertyId');
@@ -273,6 +303,155 @@ extension AIProviderQueryFilter
     return QueryBuilder.apply(this, (query) {
       return query.addFilterCondition(FilterCondition.greaterThan(
         property: r'apiKey',
+        value: '',
+      ));
+    });
+  }
+
+  QueryBuilder<AIProvider, AIProvider, QAfterFilterCondition> apiTypeIsNull() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(const FilterCondition.isNull(
+        property: r'apiType',
+      ));
+    });
+  }
+
+  QueryBuilder<AIProvider, AIProvider, QAfterFilterCondition>
+      apiTypeIsNotNull() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(const FilterCondition.isNotNull(
+        property: r'apiType',
+      ));
+    });
+  }
+
+  QueryBuilder<AIProvider, AIProvider, QAfterFilterCondition> apiTypeEqualTo(
+    String? value, {
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'apiType',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<AIProvider, AIProvider, QAfterFilterCondition>
+      apiTypeGreaterThan(
+    String? value, {
+    bool include = false,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        include: include,
+        property: r'apiType',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<AIProvider, AIProvider, QAfterFilterCondition> apiTypeLessThan(
+    String? value, {
+    bool include = false,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.lessThan(
+        include: include,
+        property: r'apiType',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<AIProvider, AIProvider, QAfterFilterCondition> apiTypeBetween(
+    String? lower,
+    String? upper, {
+    bool includeLower = true,
+    bool includeUpper = true,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.between(
+        property: r'apiType',
+        lower: lower,
+        includeLower: includeLower,
+        upper: upper,
+        includeUpper: includeUpper,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<AIProvider, AIProvider, QAfterFilterCondition> apiTypeStartsWith(
+    String value, {
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.startsWith(
+        property: r'apiType',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<AIProvider, AIProvider, QAfterFilterCondition> apiTypeEndsWith(
+    String value, {
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.endsWith(
+        property: r'apiType',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<AIProvider, AIProvider, QAfterFilterCondition> apiTypeContains(
+      String value,
+      {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.contains(
+        property: r'apiType',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<AIProvider, AIProvider, QAfterFilterCondition> apiTypeMatches(
+      String pattern,
+      {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.matches(
+        property: r'apiType',
+        wildcard: pattern,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<AIProvider, AIProvider, QAfterFilterCondition> apiTypeIsEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'apiType',
+        value: '',
+      ));
+    });
+  }
+
+  QueryBuilder<AIProvider, AIProvider, QAfterFilterCondition>
+      apiTypeIsNotEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        property: r'apiType',
         value: '',
       ));
     });
@@ -599,6 +778,152 @@ extension AIProviderQueryFilter
     return QueryBuilder.apply(this, (query) {
       return query.addFilterCondition(FilterCondition.greaterThan(
         property: r'modelId',
+        value: '',
+      ));
+    });
+  }
+
+  QueryBuilder<AIProvider, AIProvider, QAfterFilterCondition> nameIsNull() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(const FilterCondition.isNull(
+        property: r'name',
+      ));
+    });
+  }
+
+  QueryBuilder<AIProvider, AIProvider, QAfterFilterCondition> nameIsNotNull() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(const FilterCondition.isNotNull(
+        property: r'name',
+      ));
+    });
+  }
+
+  QueryBuilder<AIProvider, AIProvider, QAfterFilterCondition> nameEqualTo(
+    String? value, {
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'name',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<AIProvider, AIProvider, QAfterFilterCondition> nameGreaterThan(
+    String? value, {
+    bool include = false,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        include: include,
+        property: r'name',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<AIProvider, AIProvider, QAfterFilterCondition> nameLessThan(
+    String? value, {
+    bool include = false,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.lessThan(
+        include: include,
+        property: r'name',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<AIProvider, AIProvider, QAfterFilterCondition> nameBetween(
+    String? lower,
+    String? upper, {
+    bool includeLower = true,
+    bool includeUpper = true,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.between(
+        property: r'name',
+        lower: lower,
+        includeLower: includeLower,
+        upper: upper,
+        includeUpper: includeUpper,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<AIProvider, AIProvider, QAfterFilterCondition> nameStartsWith(
+    String value, {
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.startsWith(
+        property: r'name',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<AIProvider, AIProvider, QAfterFilterCondition> nameEndsWith(
+    String value, {
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.endsWith(
+        property: r'name',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<AIProvider, AIProvider, QAfterFilterCondition> nameContains(
+      String value,
+      {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.contains(
+        property: r'name',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<AIProvider, AIProvider, QAfterFilterCondition> nameMatches(
+      String pattern,
+      {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.matches(
+        property: r'name',
+        wildcard: pattern,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<AIProvider, AIProvider, QAfterFilterCondition> nameIsEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'name',
+        value: '',
+      ));
+    });
+  }
+
+  QueryBuilder<AIProvider, AIProvider, QAfterFilterCondition> nameIsNotEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        property: r'name',
         value: '',
       ));
     });

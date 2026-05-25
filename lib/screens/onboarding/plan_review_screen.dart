@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:calorize/services/database_service.dart';
 import 'package:calorize/data/models/user_profile.dart';
+import 'package:calorize/data/models/ai_provider.dart';
 import 'package:calorize/screens/home_screen.dart';
-import 'package:isar/isar.dart';
 import 'package:fl_chart/fl_chart.dart';
 
 class PlanReviewScreen extends StatelessWidget {
@@ -44,8 +44,12 @@ class PlanReviewScreen extends StatelessWidget {
         ..carbsGoal = macros['carbs']
         ..fiberGoal = macros['fiber']
         ..sugarGoal = macros['sugar']
-        ..sodiumGoal = macros['sodium']
-        ..geminiApiKey = userProfileData['geminiApiKey'];
+        ..sodiumGoal = macros['sodium'];
+
+      final aiProvider = userProfileData['aiProvider'] as AIProvider?;
+      if (aiProvider != null) {
+        userProfile.aiProviders = [aiProvider];
+      }
       
       debugPrint('UserProfile created. Writing to Isar...');
       await isar.writeTxn(() async {

@@ -56,13 +56,17 @@ class UserProfile {
   int dinnerTime = 1140;   // 7:00 PM
 
   List<AIProvider>? aiProviders;
+  String? aiRoutingMode; // null/'fill_up' = fill up first, 'round_robin' = round robin
   List<MacroGoal>? weeklyGoals;
 }
 
 extension UserProfileGoalsExtension on UserProfile {
   MacroGoal? getGoalForDay(int dayOfWeek) {
     if (weeklyGoals == null) return null;
-    return weeklyGoals!.firstWhere((goal) => goal.dayOfWeek == dayOfWeek, orElse: () => null as MacroGoal);
+    for (final goal in weeklyGoals!) {
+      if (goal.dayOfWeek == dayOfWeek) return goal;
+    }
+    return null;
   }
 
   int getTdeeGoalForDay(int dayOfWeek) {
