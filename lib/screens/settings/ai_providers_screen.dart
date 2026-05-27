@@ -54,10 +54,10 @@ class _AiProvidersScreenState extends State<AiProvidersScreen> {
   }
 
   Future<void> _addProvider() async {
-    if (_providers.length >= 3) {
+    if (_providers.length >= 10) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Maximum 3 AI providers allowed')),
+          const SnackBar(content: Text('Maximum 10 AI providers allowed')),
         );
       }
       return;
@@ -152,7 +152,7 @@ class _AiProvidersScreenState extends State<AiProvidersScreen> {
             ),
       floatingActionButton: FloatingActionButton(
         onPressed: _addProvider,
-        backgroundColor: _providers.length >= 3
+        backgroundColor: _providers.length >= 10
             ? Colors.grey
             : Theme.of(context).colorScheme.primary,
         child: const Icon(Icons.add),
@@ -206,7 +206,7 @@ class _AiProvidersScreenState extends State<AiProvidersScreen> {
     final iconData = _getProviderIcon(provider.providerId);
 
     return Card(
-      key: ValueKey('${provider.providerId}_$index'),
+      key: ObjectKey(provider),
       margin: const EdgeInsets.only(bottom: 8),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),

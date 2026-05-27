@@ -413,10 +413,14 @@ class DatabaseService {
       } : null,
       'foodLogs': logs.map((log) => {
         'foodName': log.foodName,
+        'brandName': log.brandName,
         'calories': log.calories,
         'protein': log.macros.protein,
         'carbs': log.macros.carbs,
         'fat': log.macros.fat,
+        'fiber': log.macros.fiber,
+        'sugar': log.macros.sugar,
+        'sodium': log.macros.sodium,
         'timestamp': log.timestamp.toIso8601String(),
       }).toList(),
       'dailyStats': stats.map((stat) => {
@@ -522,6 +526,126 @@ class DatabaseService {
         profile.aiProviders = providers;
         await isar.userProfiles.put(profile);
       });
+    }
+  }
+
+  Future<void> importFoodLogsFromJson(String jsonString) async {
+    final Map<String, dynamic> data = json.decode(jsonString);
+    
+    // Parse Profile if present
+    if (data['profile'] != null) {
+      final profileData = data['profile'] as Map<String, dynamic>;
+      final profile = await getUserProfile();
+      if (profile != null) {
+        profile.goalType = profileData['goalType'] ?? profile.goalType;
+        profile.tdeeGoal = (profileData['tdeeGoal'] as num?)?.toInt() ?? profile.tdeeGoal;
+        profile.proteinGoal = (profileData['proteinGoal'] as num?)?.toDouble() ?? profile.proteinGoal;
+        profile.carbsGoal = (profileData['carbsGoal'] as num?)?.toDouble() ?? profile.carbsGoal;
+        profile.fatGoal = (profileData['fatGoal'] as num?)?.toDouble() ?? profile.fatGoal;
+        profile.height = (profileData['height'] as num?)?.toDouble() ?? profile.height;
+        profile.weight = (profileData['weight'] as num?)?.toDouble() ?? profile.weight;
+        profile.activityLevel = profileData['activityLevel'] ?? profile.activityLevel;
+        await isar.writeTxn(() => isar.userProfiles.put(profile));
+      }
+    }
+
+    final foodLogsList = data['foodLogs'] as List<dynamic>? ?? [];
+    final dailyStatsList = data['dailyStats'] as List<dynamic>? ?? [];
+
+    await isar.writeTxn(() async {
+      // Import Food Logs
+      for (final logItem in foodLogsList) {
+        if (logItem is! Map<String, dynamic>) continue;
+        final timestampStr = logItem['timestamp'] as String?;
+        final foodName = logItem['foodName'] as String? ?? '';
+        final brandName = logItem['brandName'] as String?;
+        final calories = (logItem['calories'] as num?)?.toInt() ?? 0;
+        final protein = (logItem['protein'] as num?)?.toDouble();
+        final carbs = (logItem['carbs'] as num?)?.toDouble();
+        final fat = (logItem['fat'] as num?)?.toDouble();
+        final fiber = (logItem['fiber'] as num?)?.toDouble();
+        final sugar = (logItem['sugar'] as num?)?.toDouble();
+        final sodium = (logItem['sodium'] as num?)?.toDouble();
+
+        if (timestampStr == null) continue;
+        final timestamp = DateTime.parse(timestampStr);
+
+        // Duplicate check based on name and timestamp
+        final existingLog = await isar.foodLogs.filter()
+            .foodNameEqualTo(foodName)
+            .timestampEqualTo(timestamp)
+            .findFirst();
+
+        if (existingLog == null) {
+          final macros = Macros()
+            ..protein = protein
+            ..carbs = carbs
+            ..fat = fat
+            ..fiber = fiber
+            ..sugar = sugar
+            ..sodium = sodium;
+
+          final newLog = FoodLog()
+            ..foodName = foodName
+            ..brandName = brandName
+            ..calories = calories
+            ..timestamp = timestamp
+            ..macros = macros;
+
+          await isar.foodLogs.put(newLog);
+        }
+      }
+
+      // Import Daily Stats
+      for (final statItem in dailyStatsList) {
+        if (statItem is! Map<String, dynamic>) continue;
+        final dateStr = statItem['date'] as String?;
+        if (dateStr == null) continue;
+        final date = DateTime.parse(dateStr);
+
+        final totalCalories = (statItem['totalCalories'] as num?)?.toInt() ?? 0;
+        final totalProtein = (statItem['totalProtein'] as num?)?.toDouble() ?? 0.0;
+        final totalCarbs = (statItem['totalCarbs'] as num?)?.toDouble() ?? 0.0;
+        final totalFat = (statItem['totalFat'] as num?)?.toDouble() ?? 0.0;
+        final goalMetWithinRange = statItem['goalMetWithinRange'] as bool? ?? false;
+        final weightEntry = (statItem['weightEntry'] as num?)?.toDouble();
+        final bmi = (statItem['bmi'] as num?)?.toDouble();
+
+        // Duplicate check based on date
+        final existingStat = await isar.dailyStats.filter()
+            .dateEqualTo(date)
+            .findFirst();
+
+        if (existingStat != null) {
+          // Update existing with imported values or cumulative
+          existingStat.totalCalories = totalCalories;
+          existingStat.totalProtein = totalProtein;
+          existingStat.totalCarbs = totalCarbs;
+          existingStat.totalFat = totalFat;
+          existingStat.goalMetWithinRange = goalMetWithinRange;
+          if (weightEntry != null) existingStat.weightEntry = weightEntry;
+          if (bmi != null) existingStat.bmi = bmi;
+          await isar.dailyStats.put(existingStat);
+        } else {
+          final newStat = DailyStat()
+            ..date = date
+            ..totalCalories = totalCalories
+            ..totalProtein = totalProtein
+            ..totalCarbs = totalCarbs
+            ..totalFat = totalFat
+            ..goalMetWithinRange = goalMetWithinRange
+            ..weightEntry = weightEntry
+            ..bmi = bmi;
+          await isar.dailyStats.put(newStat);
+        }
+      }
+    });
+
+    // Update widgets data
+    try {
+      await BackgroundService().updateWidgetData();
+    } catch (e) {
+      debugPrint('Failed to update widgets during import: $e');
     }
   }
 

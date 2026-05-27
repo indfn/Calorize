@@ -1,4 +1,4 @@
-package com.example.calorize
+package com.calorize.app
 
 import android.app.PendingIntent
 import android.appwidget.AppWidgetManager

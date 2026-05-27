@@ -75,7 +75,7 @@ class FoodSourcingService {
     List<String> errors = [];
 
     for (int attempt = 0; attempt < enabled.length; attempt++) {
-      final provider = AiRoutingService().getNextProvider(providers);
+      final provider = AiRoutingService().getNextProvider(providers, attempt: attempt);
       if (provider == null) continue;
 
       try {
@@ -86,6 +86,8 @@ class FoodSourcingService {
           imageBytes,
           mimeType: mimeType,
         );
+
+        AiRoutingService().advanceRoundRobin(attempt + 1, enabled.length);
 
         final jsonStr = responseText.replaceAll('```json', '').replaceAll('```', '').trim();
         final decoded = jsonDecode(jsonStr);

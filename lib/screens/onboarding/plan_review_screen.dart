@@ -3,6 +3,7 @@ import 'package:calorize/services/database_service.dart';
 import 'package:calorize/data/models/user_profile.dart';
 import 'package:calorize/data/models/ai_provider.dart';
 import 'package:calorize/screens/home_screen.dart';
+import 'package:calorize/utils/macro_calculator.dart';
 import 'package:fl_chart/fl_chart.dart';
 
 class PlanReviewScreen extends StatelessWidget {
@@ -44,7 +45,22 @@ class PlanReviewScreen extends StatelessWidget {
         ..carbsGoal = macros['carbs']
         ..fiberGoal = macros['fiber']
         ..sugarGoal = macros['sugar']
-        ..sodiumGoal = macros['sodium'];
+        ..sodiumGoal = macros['sodium']
+        ..proteinPercentage = (() {
+          final pref = userProfileData['dietPreference'] as String? ?? 'Balanced';
+          final ratios = MacroCalculator.getRatiosForDiet(pref);
+          return (ratios['protein'] ?? 0.27) * 100;
+        })()
+        ..carbsPercentage = (() {
+          final pref = userProfileData['dietPreference'] as String? ?? 'Balanced';
+          final ratios = MacroCalculator.getRatiosForDiet(pref);
+          return (ratios['carbs'] ?? 0.49) * 100;
+        })()
+        ..fatPercentage = (() {
+          final pref = userProfileData['dietPreference'] as String? ?? 'Balanced';
+          final ratios = MacroCalculator.getRatiosForDiet(pref);
+          return (ratios['fat'] ?? 0.24) * 100;
+        })();
 
       final aiProvider = userProfileData['aiProvider'] as AIProvider?;
       if (aiProvider != null) {

@@ -27,18 +27,19 @@ subprojects {
                 
                 defaultConfig {
                     // Force minimums to support Health Connect
-                    minSdkVersion(26)
-                    targetSdkVersion(36)
+                    minSdk = 26
+                    targetSdk = 36
                 }
             }
         }
-
-        // Keep your Isar Specific Fix (Namespace)
+// Keep your Isar Specific Fix (Namespace)
         if (project.name == "isar_flutter_libs") {
              project.extensions.configure<com.android.build.gradle.LibraryExtension> {
                 namespace = "dev.isar.isar_flutter_libs"
             }
         }
+
+
     }
 }
 

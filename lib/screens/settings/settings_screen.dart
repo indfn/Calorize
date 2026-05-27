@@ -11,6 +11,7 @@ import 'package:calorize/services/notification_service.dart';
 import 'package:calorize/screens/settings/weekly_macros_screen.dart';
 import 'package:calorize/screens/settings/ai_providers_screen.dart';
 
+import 'package:file_picker/file_picker.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
@@ -724,6 +725,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
             onTap: _exportFoodLogs,
           ),
           _buildSectionDivider(scheme),
+          _buildNavRow('Import Food Logs', scheme,
+            subtitle: 'Restore your data from a JSON file',
+            onTap: _importFoodLogs,
+          ),
+          _buildSectionDivider(scheme),
           InkWell(
             onTap: () {
               showDialog(
@@ -828,6 +834,35 @@ class _SettingsScreenState extends State<SettingsScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Export failed: $e')),
+        );
+      }
+    }
+  }
+
+  Future<void> _importFoodLogs() async {
+    try {
+      final FilePickerResult? result = await FilePicker.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: ['json'],
+      );
+
+      if (result != null && result.files.single.path != null) {
+        final file = File(result.files.single.path!);
+        final jsonString = await file.readAsString();
+        
+        await DatabaseService().importFoodLogsFromJson(jsonString);
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Food logs imported successfully!')),
+          );
+          _loadProfile();
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Import failed: $e')),
         );
       }
     }

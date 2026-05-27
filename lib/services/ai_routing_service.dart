@@ -15,19 +15,23 @@ class AiRoutingService {
   Future<void> loadSettings() async {
     final profile = await DatabaseService().getUserProfile();
     _roundRobin = profile?.aiRoutingMode == 'round_robin';
-    _currentIndex = 0;
+    // Do not reset _currentIndex here so round robin persists across image requests
   }
 
-  AIProvider? getNextProvider(List<AIProvider> providers) {
+  AIProvider? getNextProvider(List<AIProvider> providers, {int attempt = 0}) {
     final enabled = providers.where((p) => p.isEnabled == true).toList();
     if (enabled.isEmpty) return null;
 
     if (_roundRobin) {
-      final provider = enabled[_currentIndex % enabled.length];
-      _currentIndex = (_currentIndex + 1) % enabled.length;
-      return provider;
+      return enabled[(_currentIndex + attempt) % enabled.length];
     } else {
-      return enabled.first;
+      return enabled[attempt % enabled.length];
+    }
+  }
+
+  void advanceRoundRobin(int attemptsMade, int totalEnabled) {
+    if (_roundRobin && totalEnabled > 0) {
+      _currentIndex = (_currentIndex + attemptsMade) % totalEnabled;
     }
   }
 

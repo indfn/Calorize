@@ -40,9 +40,9 @@ class UserProfile {
   String themeMode = 'system'; // 'light', 'dark', 'system'
   
   // Macro split percentages
-  double proteinPercentage = 30.0; 
-  double carbsPercentage = 40.0;
-  double fatPercentage = 30.0;
+  double proteinPercentage = 27.0; 
+  double carbsPercentage = 49.0;
+  double fatPercentage = 24.0;
 
   // Notification Settings
   bool notificationsEnabled = false;

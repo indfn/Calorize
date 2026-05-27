@@ -52,7 +52,7 @@ class MyApp extends StatefulWidget {
 class _MyAppState extends State<MyApp> {
   final GlobalKey<NavigatorState> _navigatorKey = GlobalKey<NavigatorState>();
 
-  static const platform = MethodChannel('com.example.calorize/widget');
+  static const platform = MethodChannel('com.calorize.app/widget');
 
   @override
   void initState() {

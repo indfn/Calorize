@@ -183,7 +183,32 @@ class _AiProviderFormState extends State<AiProviderForm> {
                 Expanded(child: _presetCard('Custom', 'custom', Icons.build_outlined)),
               ],
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 12),
+            if (_fieldErrors.isNotEmpty)
+              Container(
+                margin: const EdgeInsets.only(bottom: 16),
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.red.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.red.withOpacity(0.3)),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.error_outline, color: Colors.red),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        'Please fix the errors below.',
+                        style: GoogleFonts.inter(
+                          color: Colors.red,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             _buildTextField(_nameController, 'Name', 'My Provider', errorText: _fieldErrors['name']),
             const SizedBox(height: 12),
             _buildTextField(_apiKeyController, 'API Key', 'Paste your key here', obscure: true, errorText: _fieldErrors['apiKey']),

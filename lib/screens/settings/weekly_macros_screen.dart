@@ -254,7 +254,6 @@ class _WeeklyMacrosScreenState extends State<WeeklyMacrosScreen> {
                         final carbsCals = carbsGrams * 4;
                         final fatCals = fatGrams * 9;
                         final totalCals = proteinCals + carbsCals + fatCals;
-                        final isToday = day == DateTime.now().weekday;
 
                         return BarChartGroupData(
                           x: day,
@@ -262,12 +261,12 @@ class _WeeklyMacrosScreenState extends State<WeeklyMacrosScreen> {
                             BarChartRodData(
                               toY: totalCals,
                               rodStackItems: [
-                                BarChartRodStackItem(0, fatCals, const Color(0xFFFFD700)),
-                                BarChartRodStackItem(fatCals, fatCals + carbsCals, const Color(0xFF4CAF50)),
-                                BarChartRodStackItem(fatCals + carbsCals, totalCals, const Color(0xFFFF9800)),
+                                BarChartRodStackItem(0, fatCals, Colors.yellow),
+                                BarChartRodStackItem(fatCals, fatCals + carbsCals, Colors.blue),
+                                BarChartRodStackItem(fatCals + carbsCals, totalCals, Colors.orange),
                               ],
                               color: Colors.transparent,
-                              width: isToday ? 20 : 14,
+                              width: 14,
                               borderRadius: const BorderRadius.vertical(top: Radius.circular(4)),
                             ),
                           ],
@@ -281,11 +280,11 @@ class _WeeklyMacrosScreenState extends State<WeeklyMacrosScreen> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    _legendItem('P', const Color(0xFFFF9800), textSecondary),
+                    _legendItem('P', Colors.orange, textSecondary),
                     const SizedBox(width: 16),
-                    _legendItem('C', const Color(0xFF4CAF50), textSecondary),
+                    _legendItem('C', Colors.blue, textSecondary),
                     const SizedBox(width: 16),
-                    _legendItem('F', const Color(0xFFFFD700), textSecondary),
+                    _legendItem('F', Colors.yellow, textSecondary),
                   ],
                 ),
               ],
