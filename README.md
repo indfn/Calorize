@@ -35,12 +35,25 @@ Open the downloaded file. Your phone will likely warn you about installing unkno
 *   Toggle **"Allow from this source"**.
 *   Tap **Install**.
 
-### 3. ⚠️ Important: Enable Alarms & Notifications
-Because this app is installed manually, modern Android versions (13+) restrict some permissions by default. To make sure **Daily Reminders** work:
+### 3. Onboarding & Setup
 
-1.  Open **Calorize** and go to **Settings**.
-2.  Tap the **"Open Settings to Fix"** button (under Notifications) OR go to your phone's **Settings > Apps > Calorize**.
-3.  Tap **Alarms & Reminders** → Turn **ON**.
+When you first open Calorize, the app will guide you through a quick onboarding process to personalize your experience:
+*   **Profile details:** Enter your age, gender, weight, and height.
+*   **Activity Level:** Select how active you are to ensure accurate expenditure estimates.
+*   **Dietary Goals:** Choose between maintaining, losing, or gaining weight.
+*   **Diet Preference:** Select from standard, high-protein, or keto splits, or define your own.
+
+Based on your answers, Calorize calculates a **suggested TDEE (Total Daily Energy Expenditure)** and a **custom macro split** tailored to your goals:
+*   **Calories:** Calculated using the **Mifflin-St Jeor Equation** to determine your BMR, adjusted by your activity level and weight goals (using a standard 7700 kcal/kg fat equivalent).
+*   **Macros:** Derived from your calorie target using preconfigured ratios for **Balanced**, **High Protein**, **Low Carb**, or **Low Fat** diets.
+*   **Micros:** Automatically sets daily targets for Fiber (based on age/gender), Sugar (<10% of calories), and Sodium (2300mg limit).
+
+#### Finalize your configuration in Settings:
+Once onboarded, head over to the **Settings** tab to fully set up your app:
+*   **AI Providers:** To use the "Snap" food analysis feature, you'll need to add an API key (e.g., Gemini, OpenAI, or Anthropic). You can configure up to 10 providers with smart fallback routing.
+*   **Theme:** Toggle between Light and Dark mode (persisted at the OS level for a seamless splash screen experience).
+*   **Notifications:** Enable and grant permissions for meal reminders to ensure you stay on track.
+*   **Data Management:** Import or export your JSON food logs to keep your data safe or migrate between devices.
 
 ---
 

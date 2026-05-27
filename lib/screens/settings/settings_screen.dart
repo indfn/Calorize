@@ -579,23 +579,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 });
               }),
             ),
-            const SizedBox(height: 8),
-            _buildNavRow('Notifications not working?', scheme,
-              subtitle: 'Some devices require special permissions. Check the guide for your phone brand.',
-              onTap: () async {
-                final uri = Uri.parse('https://dontkillmyapp.com');
-                try {
-                  await launchUrl(uri, mode: LaunchMode.externalApplication);
-                } catch (e) {
-                  debugPrint('Failed to launch URL: $e');
-                  if (context.mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Could not open browser. Please visit dontkillmyapp.com manually.')),
-                    );
-                  }
-                }
-              },
-            ),
           ],
         ],
       ),
