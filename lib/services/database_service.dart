@@ -520,13 +520,13 @@ class DatabaseService {
   }
 
   Future<void> saveAiProviders(List<AIProvider> providers) async {
-    final profile = await getUserProfile();
-    if (profile != null) {
-      await isar.writeTxn(() async {
+    await isar.writeTxn(() async {
+      final profile = await isar.userProfiles.where().findFirst();
+      if (profile != null) {
         profile.aiProviders = providers;
         await isar.userProfiles.put(profile);
-      });
-    }
+      }
+    });
   }
 
   Future<void> importFoodLogsFromJson(String jsonString) async {

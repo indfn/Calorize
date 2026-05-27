@@ -28,7 +28,7 @@ class _AiProvidersScreenState extends State<AiProvidersScreen> {
     final profile = await DatabaseService().getUserProfile();
     if (mounted) {
       setState(() {
-        _providers = profile?.aiProviders ?? [];
+        _providers = profile?.aiProviders?.toList() ?? [];
         _roundRobin = profile?.aiRoutingMode == 'round_robin';
         _isLoading = false;
       });
@@ -36,8 +36,16 @@ class _AiProvidersScreenState extends State<AiProvidersScreen> {
   }
 
   Future<void> _saveProviders() async {
-    await DatabaseService().saveAiProviders(_providers);
-    await AiRoutingService().loadSettings();
+    try {
+      await DatabaseService().saveAiProviders(_providers);
+      await AiRoutingService().loadSettings();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to save providers: $e')),
+        );
+      }
+    }
   }
 
   Future<void> _saveRoutingMode(bool roundRobin) async {
