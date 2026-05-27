@@ -53,6 +53,8 @@ class _AiProviderFormState extends State<AiProviderForm> {
       _modelIdController.text = p.modelId ?? '';
       _selectedPreset = p.providerId;
       _apiType = p.apiType ?? 'openai';
+    } else {
+      _selectPreset('google');
     }
   }
 
