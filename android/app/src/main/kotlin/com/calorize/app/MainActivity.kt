@@ -47,9 +47,13 @@ class MainActivity : FlutterActivity() {
         super.configureFlutterEngine(flutterEngine)
         methodChannel = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CHANNEL)
 
-        pendingWidgetAction?.let {
-            methodChannel?.invokeMethod("onWidgetClick", it)
-            pendingWidgetAction = null
+        methodChannel?.setMethodCallHandler { call, result ->
+            if (call.method == "getPendingWidgetAction") {
+                result.success(pendingWidgetAction)
+                pendingWidgetAction = null
+            } else {
+                result.notImplemented()
+            }
         }
         
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, THEME_CHANNEL).setMethodCallHandler { call, result ->

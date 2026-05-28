@@ -70,6 +70,19 @@ class _MyAppState extends State<MyApp> {
         }
       }
     });
+    _checkPendingWidgetAction();
+  }
+
+  Future<void> _checkPendingWidgetAction() async {
+    try {
+      final String? pending = await platform.invokeMethod('getPendingWidgetAction');
+      if (pending != null && pending.isNotEmpty) {
+        await Future.delayed(const Duration(milliseconds: 300));
+        _handleLaunch(Uri.parse(pending));
+      }
+    } catch (e) {
+      debugPrint('No pending widget action: $e');
+    }
   }
 
   void _handleLaunch(Uri? uri) {
