@@ -14,7 +14,7 @@
 *   **Food Content Analysis:** Snap a photo of your meal. Calorize can use any **AI Provider API** to analyze images and identify ingredients, estimate portion sizes, and calculate calories instantly.
 *   **Privacy First:** **No servers. No accounts.** All data is stored locally on your device using an **Isar Database**. Your health data belongs to you.
 *   **Barcode Scanner:** Instant nutritional data for packaged goods via OpenFoodFacts.
-    **Individual Day Goal Configuration** Set varying goals for each specific day of the week, for those who want to follow custom plans.
+*   **Individual Day Goal Configuration** Set varying goals for each specific day of the week, for those who want to follow custom plans.
 *   **Deep Analytics:** Interactive charts for weight, BMI, and calorie trends.
 *   **Rolling History:** Detailed food logs are kept for 7 days, while long-term stats are saved forever.
 *   **Home Screen Widgets:** View your remaining calories and macros at a glance.
