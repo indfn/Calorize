@@ -110,6 +110,8 @@ class _MyAppState extends State<MyApp> {
           ).catchError((e) {
             debugPrint('BottomSheet error manual_log: $e');
           });
+        } else if (action == 'dashboard') {
+          // Just open the app to its normal state — no navigation needed
         }
       }
     });

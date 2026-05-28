@@ -11,6 +11,7 @@ class MainActivity : FlutterActivity() {
     private val CHANNEL = "com.calorize.app/widget"
     private val THEME_CHANNEL = "com.calorize.app/theme"
     private var methodChannel: MethodChannel? = null
+    private var pendingWidgetAction: String? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         val sharedPrefs = getSharedPreferences("FlutterSharedPreferences", Context.MODE_PRIVATE)
@@ -31,25 +32,25 @@ class MainActivity : FlutterActivity() {
             }
         }
         super.onCreate(savedInstanceState)
-        handleIntent(intent)
+        pendingWidgetAction = intent?.data?.toString()
     }
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
-        handleIntent(intent)
-    }
-
-    private fun handleIntent(intent: Intent?) {
-        val data = intent?.data
-        if (data != null) {
-            methodChannel?.invokeMethod("onWidgetClick", data.toString())
+        intent?.data?.toString()?.let { action ->
+            methodChannel?.invokeMethod("onWidgetClick", action)
         }
     }
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
         methodChannel = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CHANNEL)
+
+        pendingWidgetAction?.let {
+            methodChannel?.invokeMethod("onWidgetClick", it)
+            pendingWidgetAction = null
+        }
         
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, THEME_CHANNEL).setMethodCallHandler { call, result ->
             if (call.method == "setThemeMode") {
