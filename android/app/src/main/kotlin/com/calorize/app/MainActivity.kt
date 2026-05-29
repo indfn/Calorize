@@ -2,6 +2,7 @@ package com.calorize.app
 
 import android.content.Context
 import android.content.Intent
+import android.content.SharedPreferences
 import android.os.Bundle
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
@@ -44,6 +45,10 @@ class MainActivity : FlutterActivity() {
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
         methodChannel = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CHANNEL)
+
+        // Clear stale scheduled notification cache that can cause Gson deserialization
+        // failures after package rename (Missing type parameter error).
+        getSharedPreferences("scheduled_notifications", Context.MODE_PRIVATE).edit().clear().apply()
         
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, THEME_CHANNEL).setMethodCallHandler { call, result ->
             if (call.method == "setThemeMode") {
