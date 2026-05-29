@@ -136,6 +136,8 @@ class NotificationService {
   }
 
   Future<void> scheduleTestNotification() async {
+    await requestPermissions();
+
     final scheduledDate = DateTime.now().add(const Duration(seconds: 5));
 
     try {
