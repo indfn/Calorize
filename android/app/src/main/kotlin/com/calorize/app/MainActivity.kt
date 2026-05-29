@@ -47,8 +47,18 @@ class MainActivity : FlutterActivity() {
         methodChannel = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CHANNEL)
 
         // Clear stale scheduled notification cache that can cause Gson deserialization
-        // failures after package rename (Missing type parameter error).
+        // failures (Missing type parameter error from TypeToken).
         getSharedPreferences("scheduled_notifications", Context.MODE_PRIVATE).edit().clear().apply()
+
+        // Allow Dart to clear the notification cache on demand before every operation
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "com.calorize.app/notifications").setMethodCallHandler { call, result ->
+            if (call.method == "clearScheduledNotificationsCache") {
+                getSharedPreferences("scheduled_notifications", Context.MODE_PRIVATE).edit().clear().apply()
+                result.success(null)
+            } else {
+                result.notImplemented()
+            }
+        }
         
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, THEME_CHANNEL).setMethodCallHandler { call, result ->
             if (call.method == "setThemeMode") {

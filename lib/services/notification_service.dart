@@ -12,7 +12,14 @@ class NotificationService {
   NotificationService._internal();
 
   final FlutterLocalNotificationsPlugin _notificationsPlugin = FlutterLocalNotificationsPlugin();
+  static const _notificationChannel = MethodChannel('com.calorize.app/notifications');
   bool debugLogsEnabled = false;
+
+  Future<void> _clearScheduledNotificationsCache() async {
+    try {
+      await _notificationChannel.invokeMethod('clearScheduledNotificationsCache');
+    } catch (_) {}
+  }
 
   Future<void> init() async {
     tz.initializeTimeZones();
@@ -106,6 +113,7 @@ class NotificationService {
     final now = tz.TZDateTime.now(tz.local);
     final scheduledDate = _computeScheduledDate(now, minutesFromMidnight);
 
+    await _clearScheduledNotificationsCache();
     try {
       await _notificationsPlugin.zonedSchedule(
         id,
@@ -132,6 +140,7 @@ class NotificationService {
     } on PlatformException catch (e) {
       if (e.code == 'exact_alarms_not_permitted') {
         debugPrint('⚠️ Exact alarm not permitted, falling back to inexact for [$title]');
+        await _clearScheduledNotificationsCache();
         try {
           await _notificationsPlugin.zonedSchedule(
             id, title, body, scheduledDate,
@@ -179,6 +188,7 @@ class NotificationService {
     final now = tz.TZDateTime.now(tz.local);
     final scheduledDate = now.add(const Duration(seconds: 5));
 
+    await _clearScheduledNotificationsCache();
     try {
       await _notificationsPlugin.zonedSchedule(
         999,
@@ -203,34 +213,39 @@ class NotificationService {
     } on PlatformException catch (e) {
       if (e.code == 'exact_alarms_not_permitted') {
         debugPrint('⚠️ Exact alarm not permitted for test notification, falling back to inexact');
-        await _notificationsPlugin.zonedSchedule(
-          999,
-          'Test Notification 🔔',
-          'This is a test notification from Calorize.',
-          scheduledDate,
-          const NotificationDetails(
-            android: AndroidNotificationDetails(
-              'test_channel',
-              'Test Notifications',
-              channelDescription: 'Test notifications for debugging',
-              importance: Importance.max,
-              priority: Priority.high,
-              icon: '@mipmap/launcher_icon',
+        await _clearScheduledNotificationsCache();
+        try {
+          await _notificationsPlugin.zonedSchedule(
+            999,
+            'Test Notification 🔔',
+            'This is a test notification from Calorize.',
+            scheduledDate,
+            const NotificationDetails(
+              android: AndroidNotificationDetails(
+                'test_channel',
+                'Test Notifications',
+                channelDescription: 'Test notifications for debugging',
+                importance: Importance.max,
+                priority: Priority.high,
+                icon: '@mipmap/launcher_icon',
+              ),
             ),
-          ),
-          androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
-          uiLocalNotificationDateInterpretation:
-              UILocalNotificationDateInterpretation.absoluteTime,
-        );
-        debugPrint('✅ Test notification scheduled (inexact) for $scheduledDate');
+            androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+            uiLocalNotificationDateInterpretation:
+                UILocalNotificationDateInterpretation.absoluteTime,
+          );
+          debugPrint('✅ Test notification scheduled (inexact) for $scheduledDate');
+        } catch (e2) {
+          debugPrint('❌ Fallback scheduling also failed: $e2');
+        }
       } else {
         debugPrint('❌ Error scheduling test notification: $e');
-        rethrow;
       }
     }
   }
 
   Future<void> cancelAll() async {
+    await _clearScheduledNotificationsCache();
     try {
       await _notificationsPlugin.cancelAll();
     } catch (e) {
