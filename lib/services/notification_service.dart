@@ -12,14 +12,8 @@ class NotificationService {
   NotificationService._internal();
 
   final FlutterLocalNotificationsPlugin _notificationsPlugin = FlutterLocalNotificationsPlugin();
-  static const _notificationChannel = MethodChannel('com.calorize.app/notifications');
+  static const _alarmChannel = MethodChannel('com.calorize.app/custom_alarm');
   bool debugLogsEnabled = false;
-
-  Future<void> _clearScheduledNotificationsCache() async {
-    try {
-      await _notificationChannel.invokeMethod('clearScheduledNotificationsCache');
-    } catch (_) {}
-  }
 
   Future<void> init() async {
     tz.initializeTimeZones();
@@ -111,65 +105,6 @@ class NotificationService {
     }
 
     final now = tz.TZDateTime.now(tz.local);
-    final scheduledDate = _computeScheduledDate(now, minutesFromMidnight);
-
-    await _clearScheduledNotificationsCache();
-    try {
-      await _notificationsPlugin.zonedSchedule(
-        id,
-        title,
-        body,
-        scheduledDate,
-        const NotificationDetails(
-          android: AndroidNotificationDetails(
-            'meal_reminders_v2',
-            'Meal Reminders',
-            channelDescription: 'Reminders to log your meals',
-            importance: Importance.max,
-            priority: Priority.high,
-            icon: '@mipmap/launcher_icon',
-          ),
-        ),
-        androidScheduleMode: AndroidScheduleMode.alarmClock,
-        matchDateTimeComponents: DateTimeComponents.time,
-        uiLocalNotificationDateInterpretation:
-            UILocalNotificationDateInterpretation.absoluteTime,
-      );
-
-      if (debugLogsEnabled) debugPrint('✅ Scheduled [$title] for $scheduledDate');
-    } on PlatformException catch (e) {
-      if (e.code == 'exact_alarms_not_permitted') {
-        debugPrint('⚠️ Exact alarm not permitted, falling back to inexact for [$title]');
-        await _clearScheduledNotificationsCache();
-        try {
-          await _notificationsPlugin.zonedSchedule(
-            id, title, body, scheduledDate,
-            const NotificationDetails(
-              android: AndroidNotificationDetails(
-                'meal_reminders_v2',
-                'Meal Reminders',
-                channelDescription: 'Reminders to log your meals',
-                importance: Importance.max,
-                priority: Priority.high,
-                icon: '@mipmap/launcher_icon',
-              ),
-            ),
-            androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
-            matchDateTimeComponents: DateTimeComponents.time,
-            uiLocalNotificationDateInterpretation:
-                UILocalNotificationDateInterpretation.absoluteTime,
-          );
-          if (debugLogsEnabled) debugPrint('✅ Scheduled (inexact) [$title] for $scheduledDate');
-        } catch (e2) {
-          debugPrint('❌ Fallback scheduling also failed for [$title]: $e2');
-        }
-      } else {
-        debugPrint('❌ Error scheduling notification $id: $e');
-      }
-    }
-  }
-
-  tz.TZDateTime _computeScheduledDate(tz.TZDateTime now, int minutesFromMidnight) {
     var scheduledDate = tz.TZDateTime(
       tz.local,
       now.year,
@@ -181,75 +116,54 @@ class NotificationService {
     if (scheduledDate.isBefore(now)) {
       scheduledDate = scheduledDate.add(const Duration(days: 1));
     }
-    return scheduledDate;
+
+    final nextDate = scheduledDate.add(const Duration(days: 1));
+
+    try {
+      await _alarmChannel.invokeMethod('scheduleAlarm', {
+        'id': id,
+        'title': title,
+        'body': body,
+        'channelId': 'meal_reminders_v2',
+        'channelName': 'Meal Reminders',
+        'epochMillis': scheduledDate.millisecondsSinceEpoch,
+        'nextEpochMillis': nextDate.millisecondsSinceEpoch,
+      });
+      if (debugLogsEnabled) debugPrint('✅ Scheduled [$title] for $scheduledDate');
+    } catch (e) {
+      debugPrint('❌ Error scheduling notification $id: $e');
+    }
   }
 
   Future<void> scheduleTestNotification() async {
-    final now = tz.TZDateTime.now(tz.local);
-    final scheduledDate = now.add(const Duration(seconds: 5));
+    final scheduledDate = DateTime.now().add(const Duration(seconds: 5));
 
-    await _clearScheduledNotificationsCache();
     try {
-      await _notificationsPlugin.zonedSchedule(
-        999,
-        'Test Notification 🔔',
-        'This is a test notification from Calorize.',
-        scheduledDate,
-        const NotificationDetails(
-          android: AndroidNotificationDetails(
-            'test_channel',
-            'Test Notifications',
-            channelDescription: 'Test notifications for debugging',
-            importance: Importance.max,
-            priority: Priority.high,
-            icon: '@mipmap/launcher_icon',
-          ),
-        ),
-        androidScheduleMode: AndroidScheduleMode.alarmClock,
-        uiLocalNotificationDateInterpretation:
-            UILocalNotificationDateInterpretation.absoluteTime,
-      );
+      await _alarmChannel.invokeMethod('scheduleAlarm', {
+        'id': 999,
+        'title': 'Test Notification 🔔',
+        'body': 'This is a test notification from Calorize.',
+        'channelId': 'test_channel',
+        'channelName': 'Test Notifications',
+        'epochMillis': scheduledDate.millisecondsSinceEpoch,
+        'nextEpochMillis': 0,
+      });
       debugPrint('✅ Test notification scheduled for $scheduledDate');
-    } on PlatformException catch (e) {
-      if (e.code == 'exact_alarms_not_permitted') {
-        debugPrint('⚠️ Exact alarm not permitted for test notification, falling back to inexact');
-        await _clearScheduledNotificationsCache();
-        try {
-          await _notificationsPlugin.zonedSchedule(
-            999,
-            'Test Notification 🔔',
-            'This is a test notification from Calorize.',
-            scheduledDate,
-            const NotificationDetails(
-              android: AndroidNotificationDetails(
-                'test_channel',
-                'Test Notifications',
-                channelDescription: 'Test notifications for debugging',
-                importance: Importance.max,
-                priority: Priority.high,
-                icon: '@mipmap/launcher_icon',
-              ),
-            ),
-            androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
-            uiLocalNotificationDateInterpretation:
-                UILocalNotificationDateInterpretation.absoluteTime,
-          );
-          debugPrint('✅ Test notification scheduled (inexact) for $scheduledDate');
-        } catch (e2) {
-          debugPrint('❌ Fallback scheduling also failed: $e2');
-        }
-      } else {
-        debugPrint('❌ Error scheduling test notification: $e');
-      }
+    } catch (e) {
+      debugPrint('❌ Error scheduling test notification: $e');
     }
   }
 
   Future<void> cancelAll() async {
-    await _clearScheduledNotificationsCache();
+    try {
+      await _alarmChannel.invokeMethod('cancelAllScheduledAlarms');
+    } catch (e) {
+      debugPrint('⚠️ Error cancelling custom alarms: $e');
+    }
     try {
       await _notificationsPlugin.cancelAll();
     } catch (e) {
-      debugPrint('⚠️ Error cancelling notifications (stale cache): $e');
+      debugPrint('⚠️ Error cancelling plugin notifications: $e');
     }
   }
 }

@@ -101,6 +101,11 @@
             android:exported="true" 
             android:name="com.dexterous.flutterlocalnotifications.ScheduledNotificationReceiver" />
 
+        <!-- 3. Custom Alarm Receiver (bypasses plugin Gson/TypeToken crash) -->
+        <receiver 
+            android:exported="true" 
+            android:name=".CalorizeAlarmReceiver" />
+
     </application>
 
     <!-- Health Connect Visibility + Browser intents -->
