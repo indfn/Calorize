@@ -50,7 +50,7 @@ class CalorizeAlarmReceiver : BroadcastReceiver() {
 
         val launchIntent =
             context.packageManager.getLaunchIntentForPackage(context.packageName)?.apply {
-                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+                this.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
             }
 
         val pendingIntent = PendingIntent.getActivity(
