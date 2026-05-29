@@ -59,8 +59,8 @@ fun updateDashboardWidget(context: Context, appWidgetManager: AppWidgetManager, 
     views.setTextViewText(R.id.tv_fats_value, "${fatsLeft}g")
     views.setProgressBar(R.id.pb_calories, 100, progress, false)
 
-    // Add tap-to-open
-    setOnClickOpenApp(context, views, R.id.widget_root, "calorize://dashboard")
+    // Add tap-to-open (no URI — opens app normally like tapping the app icon)
+    setOnClickOpenApp(context, views, R.id.widget_root)
 
     appWidgetManager.updateAppWidget(appWidgetId, views)
 }
@@ -75,19 +75,20 @@ fun updateShortcutsWidget(context: Context, appWidgetManager: AppWidgetManager, 
     appWidgetManager.updateAppWidget(appWidgetId, views)
 }
 
-fun setOnClickOpenApp(context: Context, views: RemoteViews, viewId: Int, uriString: String) {
+fun setOnClickOpenApp(context: Context, views: RemoteViews, viewId: Int, uriString: String? = null) {
     android.util.Log.d("WidgetClick", "Setting up click for URI: $uriString")
     
-    // Create intent to launch MainActivity with URI as data
     val intent = Intent(context, MainActivity::class.java).apply {
-        action = Intent.ACTION_VIEW
-        data = Uri.parse(uriString)
+        if (uriString != null) {
+            action = Intent.ACTION_VIEW
+            data = Uri.parse(uriString)
+        }
         addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP)
     }
     
     val pendingIntent = PendingIntent.getActivity(
         context,
-        uriString.hashCode(),
+        uriString?.hashCode() ?: 0,
         intent,
         PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
     )
