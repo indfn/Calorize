@@ -231,6 +231,10 @@ class NotificationService {
   }
 
   Future<void> cancelAll() async {
-    await _notificationsPlugin.cancelAll();
+    try {
+      await _notificationsPlugin.cancelAll();
+    } catch (e) {
+      debugPrint('⚠️ Error cancelling notifications (stale cache): $e');
+    }
   }
 }
