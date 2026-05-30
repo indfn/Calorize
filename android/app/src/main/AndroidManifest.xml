@@ -14,7 +14,7 @@
     <!-- ============================== -->
     
     <!-- Required to schedule specific times (The toggle in Special Access) -->
-    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" android:maxSdkVersion="33" />
+    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
 
     <!-- Required for alarmClock mode to wake device -->
     <uses-permission android:name="android.permission.WAKE_LOCK" />
@@ -59,6 +59,10 @@
             android:name="flutterEmbedding"
             android:value="2" />
 
+        <meta-data
+            android:name="flutter_local_notifications.default_icon"
+            android:resource="@drawable/ic_meal" />
+
         <!-- ============================== -->
         <!-- 📱 WIDGET RECEIVERS           -->
         <!-- ============================== -->
@@ -95,16 +99,10 @@
             </intent-filter>
         </receiver>
 
-        <!-- 2. THE MISSING PIECE: The Receiver for the Alarm itself -->
-        <!-- This is crucial for Samsung/Xiaomi devices to wake up the app -->
+        <!-- 2. The Receiver for the Alarm itself (used by flutter_local_notifications) -->
         <receiver 
             android:exported="true" 
             android:name="com.dexterous.flutterlocalnotifications.ScheduledNotificationReceiver" />
-
-        <!-- 3. Custom Alarm Receiver (bypasses plugin Gson/TypeToken crash) -->
-        <receiver 
-            android:exported="true" 
-            android:name=".CalorizeAlarmReceiver" />
 
     </application>
 

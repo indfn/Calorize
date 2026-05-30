@@ -12,7 +12,6 @@ class NotificationService {
   NotificationService._internal();
 
   final FlutterLocalNotificationsPlugin _notificationsPlugin = FlutterLocalNotificationsPlugin();
-  static const _alarmChannel = MethodChannel('com.calorize.app/custom_alarm');
   bool debugLogsEnabled = false;
 
   Future<void> init() async {
@@ -23,13 +22,17 @@ class NotificationService {
     } catch (e) {
       debugPrint('⚠️ Could not detect timezone: $e');
       final offset = DateTime.now().timeZoneOffset;
-      tz.setLocalLocation(tz.getLocation(
-        'Etc/GMT${offset.isNegative ? '+' : '-'}${(offset.inHours).abs()}'
-      ));
+      final hours = offset.inHours;
+      if (hours == 0) {
+        tz.setLocalLocation(tz.getLocation('Etc/UTC'));
+      } else {
+        final sign = hours.isNegative ? '+' : '-';
+        tz.setLocalLocation(tz.getLocation('Etc/GMT$sign${hours.abs()}'));
+      }
     }
 
     const AndroidInitializationSettings initializationSettingsAndroid =
-        AndroidInitializationSettings('@mipmap/launcher_icon');
+        AndroidInitializationSettings('ic_meal');
 
     const DarwinInitializationSettings initializationSettingsDarwin =
         DarwinInitializationSettings(
@@ -43,20 +46,35 @@ class NotificationService {
       iOS: initializationSettingsDarwin,
     );
 
-    await _notificationsPlugin.initialize(
-      initializationSettings,
-      onDidReceiveNotificationResponse: (NotificationResponse response) {
-        debugPrint('🔔 Notification tapped: ${response.payload}');
-      },
-    );
+    try {
+      await _notificationsPlugin.initialize(
+        initializationSettings,
+        onDidReceiveNotificationResponse: (NotificationResponse response) {
+          debugPrint('🔔 Notification tapped: ${response.payload}');
+        },
+      );
+    } catch (e) {
+      debugPrint('⚠️ Notif plugin init failed: $e');
+    }
   }
 
   Future<bool> requestPermissions() async {
-    final bool? notificationGranted = await _notificationsPlugin
+    final plugin = _notificationsPlugin
         .resolvePlatformSpecificImplementation<
-            AndroidFlutterLocalNotificationsPlugin>()
-        ?.requestNotificationsPermission();
-    return notificationGranted ?? false;
+            AndroidFlutterLocalNotificationsPlugin>();
+
+    if (plugin == null) return false;
+
+    final bool? granted = await plugin.requestNotificationsPermission();
+    return granted ?? false;
+  }
+
+  Future<bool> areNotificationsEnabled() async {
+    final plugin = _notificationsPlugin
+        .resolvePlatformSpecificImplementation<
+            AndroidFlutterLocalNotificationsPlugin>();
+    if (plugin == null) return false;
+    return await plugin.areNotificationsEnabled() ?? false;
   }
 
   Future<void> scheduleDailyNotifications(UserProfile profile) async {
@@ -66,7 +84,10 @@ class NotificationService {
       return;
     }
 
-    await requestPermissions();
+    final granted = await requestPermissions();
+    final enabled = await areNotificationsEnabled();
+    debugPrint('📋 Notif permission granted=$granted, system enabled=$enabled');
+
     await cancelAll();
 
     if (debugLogsEnabled) debugPrint('📅 Scheduling Daily Meals...');
@@ -117,55 +138,97 @@ class NotificationService {
       scheduledDate = scheduledDate.add(const Duration(days: 1));
     }
 
-    final nextDate = scheduledDate.add(const Duration(days: 1));
+    const androidDetails = AndroidNotificationDetails(
+      'meal_reminders_v2',
+      'Meal Reminders',
+      channelDescription: 'Reminders to log your meals',
+      importance: Importance.high,
+      priority: Priority.high,
+      icon: 'ic_meal',
+    );
+    const details = NotificationDetails(android: androidDetails);
 
-    try {
-      await _alarmChannel.invokeMethod('scheduleAlarm', {
-        'id': id,
-        'title': title,
-        'body': body,
-        'channelId': 'meal_reminders_v2',
-        'channelName': 'Meal Reminders',
-        'epochMillis': scheduledDate.millisecondsSinceEpoch,
-        'nextEpochMillis': nextDate.millisecondsSinceEpoch,
-      });
-      if (debugLogsEnabled) debugPrint('✅ Scheduled [$title] for $scheduledDate');
-    } catch (e) {
-      debugPrint('❌ Error scheduling notification $id: $e');
+    for (final mode in [AndroidScheduleMode.alarmClock, AndroidScheduleMode.inexact]) {
+      try {
+        await _notificationsPlugin.zonedSchedule(
+          id,
+          title,
+          body,
+          scheduledDate,
+          details,
+          androidScheduleMode: mode,
+          matchDateTimeComponents: DateTimeComponents.time,
+          uiLocalNotificationDateInterpretation:
+              UILocalNotificationDateInterpretation.absoluteTime,
+        );
+        if (debugLogsEnabled) {
+          debugPrint('✅ Scheduled [$title] for $scheduledDate using $mode');
+        }
+        return;
+      } on PlatformException catch (e) {
+        if (e.code == 'exact_alarm_permission' || e.code == 'exact_alarms_not_permitted') {
+          debugPrint('⚠️ Exact alarm not available, trying inexact...');
+          continue;
+        }
+        debugPrint('❌ Error scheduling notification $id: $e');
+        return;
+      } catch (e) {
+        debugPrint('❌ Error scheduling notification $id: $e');
+        return;
+      }
     }
+    debugPrint('❌ All schedule modes failed for notification $id');
   }
 
   Future<void> scheduleTestNotification() async {
-    await requestPermissions();
+    debugPrint('🔍 Checking notification permissions...');
+    bool granted;
+    try {
+      granted = await requestPermissions().timeout(const Duration(seconds: 10));
+      debugPrint('📋 Permission request result: $granted');
+    } catch (e) {
+      debugPrint('❌ Permission request timed out or failed: $e');
+      granted = false;
+    }
 
-    final scheduledDate = DateTime.now().add(const Duration(seconds: 5));
+    bool enabled;
+    try {
+      enabled = await areNotificationsEnabled().timeout(const Duration(seconds: 5));
+      debugPrint('📋 System enabled check: $enabled');
+    } catch (e) {
+      debugPrint('❌ System enabled check failed: $e');
+      enabled = false;
+    }
+
+    const androidDetails = AndroidNotificationDetails(
+      'test_channel',
+      'Test Notifications',
+      channelDescription: 'Test notifications from Calorize',
+      importance: Importance.high,
+      priority: Priority.high,
+      icon: 'ic_meal',
+    );
+    const details = NotificationDetails(android: androidDetails);
 
     try {
-      await _alarmChannel.invokeMethod('scheduleAlarm', {
-        'id': 999,
-        'title': 'Test Notification 🔔',
-        'body': 'This is a test notification from Calorize.',
-        'channelId': 'test_channel',
-        'channelName': 'Test Notifications',
-        'epochMillis': scheduledDate.millisecondsSinceEpoch,
-        'nextEpochMillis': 0,
-      });
-      debugPrint('✅ Test notification scheduled for $scheduledDate');
+      debugPrint('🔔 Attempting to show notification via show()...');
+      await _notificationsPlugin.show(
+        999,
+        'Test Notification 🔔',
+        'This is a test notification from Calorize.',
+        details,
+      ).timeout(const Duration(seconds: 10));
+      debugPrint('✅ Test notification shown successfully');
     } catch (e) {
-      debugPrint('❌ Error scheduling test notification: $e');
+      debugPrint('❌ Error showing test notification: $e');
     }
   }
 
   Future<void> cancelAll() async {
     try {
-      await _alarmChannel.invokeMethod('cancelAllScheduledAlarms');
-    } catch (e) {
-      debugPrint('⚠️ Error cancelling custom alarms: $e');
-    }
-    try {
       await _notificationsPlugin.cancelAll();
     } catch (e) {
-      debugPrint('⚠️ Error cancelling plugin notifications: $e');
+      debugPrint('⚠️ Error cancelling notifications: $e');
     }
   }
 }

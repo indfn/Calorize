@@ -22,6 +22,7 @@ class _DevOptionsSheet extends StatefulWidget {
 
 class _DevOptionsSheetState extends State<_DevOptionsSheet> {
   bool _isGeneratingData = false;
+  bool _isTestingNotification = false;
   bool _debugLogsEnabled = NotificationService().debugLogsEnabled;
 
   @override
@@ -77,9 +78,17 @@ class _DevOptionsSheetState extends State<_DevOptionsSheet> {
           SizedBox(
             width: double.infinity,
             child: FilledButton.icon(
-              onPressed: _triggerTestNotification,
-              icon: const Icon(Icons.notifications_active),
-              label: const Text('Trigger Test Notification'),
+              onPressed: _isTestingNotification ? null : _triggerTestNotification,
+              icon: _isTestingNotification
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.notifications_active),
+              label: Text(_isTestingNotification
+                  ? 'Running...'
+                  : 'Trigger Test Notification'),
             ),
           ),
           const SizedBox(height: 12),
@@ -121,15 +130,12 @@ class _DevOptionsSheetState extends State<_DevOptionsSheet> {
   }
 
   Future<void> _triggerTestNotification() async {
+    setState(() => _isTestingNotification = true);
     try {
-      final profile = await DatabaseService().getUserProfile();
-      if (profile != null) {
-        await NotificationService().scheduleDailyNotifications(profile);
-      }
       await NotificationService().scheduleTestNotification();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Test notification scheduled (5s)!')),
+          const SnackBar(content: Text('Triggered! Check logs for details.')),
         );
       }
     } catch (e) {
@@ -138,6 +144,8 @@ class _DevOptionsSheetState extends State<_DevOptionsSheet> {
           SnackBar(content: Text('Failed: $e')),
         );
       }
+    } finally {
+      if (mounted) setState(() => _isTestingNotification = false);
     }
   }
 }

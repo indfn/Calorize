@@ -26,6 +26,11 @@ void main() async {
   
   final isar = DatabaseService().isar;
   final userCount = await isar.userProfiles.count();
+
+  final profile = await DatabaseService().getUserProfile();
+  if (profile != null) {
+    await NotificationService().scheduleDailyNotifications(profile);
+  }
   
   // Update widgets on app start with latest data
   try {
