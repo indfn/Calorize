@@ -14,6 +14,10 @@ class NotificationService {
   final FlutterLocalNotificationsPlugin _notificationsPlugin = FlutterLocalNotificationsPlugin();
   bool debugLogsEnabled = false;
 
+  AndroidFlutterLocalNotificationsPlugin? get _androidPlugin =>
+      _notificationsPlugin.resolvePlatformSpecificImplementation<
+          AndroidFlutterLocalNotificationsPlugin>();
+
   Future<void> init() async {
     tz.initializeTimeZones();
     try {
@@ -59,22 +63,28 @@ class NotificationService {
   }
 
   Future<bool> requestPermissions() async {
-    final plugin = _notificationsPlugin
-        .resolvePlatformSpecificImplementation<
-            AndroidFlutterLocalNotificationsPlugin>();
-
+    final plugin = _androidPlugin;
     if (plugin == null) return false;
-
     final bool? granted = await plugin.requestNotificationsPermission();
     return granted ?? false;
   }
 
   Future<bool> areNotificationsEnabled() async {
-    final plugin = _notificationsPlugin
-        .resolvePlatformSpecificImplementation<
-            AndroidFlutterLocalNotificationsPlugin>();
+    final plugin = _androidPlugin;
     if (plugin == null) return false;
     return await plugin.areNotificationsEnabled() ?? false;
+  }
+
+  Future<bool> canScheduleExactAlarms() async {
+    final plugin = _androidPlugin;
+    if (plugin == null) return false;
+    return await plugin.canScheduleExactNotifications() ?? false;
+  }
+
+  Future<bool> requestExactAlarmPermission() async {
+    final plugin = _androidPlugin;
+    if (plugin == null) return false;
+    return await plugin.requestExactAlarmsPermission() ?? false;
   }
 
   Future<void> scheduleDailyNotifications(UserProfile profile) async {
@@ -148,7 +158,10 @@ class NotificationService {
     );
     const details = NotificationDetails(android: androidDetails);
 
-    for (final mode in [AndroidScheduleMode.alarmClock, AndroidScheduleMode.inexact]) {
+    for (final mode in [
+      AndroidScheduleMode.inexactAllowWhileIdle,
+      AndroidScheduleMode.inexact,
+    ]) {
       try {
         await _notificationsPlugin.zonedSchedule(
           id,
@@ -166,12 +179,8 @@ class NotificationService {
         }
         return;
       } on PlatformException catch (e) {
-        if (e.code == 'exact_alarm_permission' || e.code == 'exact_alarms_not_permitted') {
-          debugPrint('⚠️ Exact alarm not available, trying inexact...');
-          continue;
-        }
-        debugPrint('❌ Error scheduling notification $id: $e');
-        return;
+        debugPrint('⚠️ $mode failed: ${e.code} — ${e.message}');
+        continue;
       } catch (e) {
         debugPrint('❌ Error scheduling notification $id: $e');
         return;
