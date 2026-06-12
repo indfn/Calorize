@@ -45,4 +45,4 @@ Plans:
 - [x] 06-01-PLAN.md — Database + FoodEditSheet edit mode
 - [ ] 06-02-PLAN.md — Unified analysis view + status callbacks
 - [x] 06-03-PLAN.md — Error dialog + FAB fix + streak theming
-- [ ] 06-04-PLAN.md — Edit tappability + progress redesign
+- [x] 06-04-PLAN.md — Edit tappability + progress redesign
