@@ -60,7 +60,11 @@ class FoodSourcingService {
     return null;
   }
 
-  Future<FoodLog?> analyzeImage(File image, String userContext) async {
+  Future<FoodLog?> analyzeImage(
+    File image,
+    String userContext, {
+    void Function(String status)? onStatusChanged,
+  }) async {
     final profile = await DatabaseService().getUserProfile();
     final providers = profile?.aiProviders ?? [];
 
@@ -78,6 +82,8 @@ class FoodSourcingService {
       final provider = AiRoutingService().getNextProvider(providers, attempt: attempt);
       if (provider == null) continue;
 
+      onStatusChanged?.call('Analyzing with ${provider.name} (${provider.modelId})...');
+
       try {
         final mimeType = _detectMimeType(imageBytes);
         final responseText = await AiRoutingService().sendImageRequest(
@@ -85,6 +91,7 @@ class FoodSourcingService {
           _buildPrompt(userContext),
           imageBytes,
           mimeType: mimeType,
+          onStatusChanged: onStatusChanged,
         );
 
         AiRoutingService().advanceRoundRobin(attempt + 1, enabled.length);
@@ -114,6 +121,9 @@ class FoodSourcingService {
       } catch (e) {
         errors.add('${provider.name ?? provider.providerId}: $e');
         debugPrint('⚠️ AI provider ${provider.name} failed: $e');
+        if (attempt < enabled.length - 1) {
+          onStatusChanged?.call('${provider.name} failed, trying next...');
+        }
         continue;
       }
     }

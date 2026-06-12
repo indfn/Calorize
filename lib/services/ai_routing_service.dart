@@ -40,16 +40,18 @@ class AiRoutingService {
     String prompt,
     Uint8List imageBytes, {
     String mimeType = 'image/jpeg',
+    void Function(String status)? onStatusChanged,
   }) async {
+    onStatusChanged?.call('Sending to ${provider.apiType} provider...');
     switch (provider.apiType) {
       case 'google':
-        return _callGemini(provider, prompt, imageBytes, mimeType: mimeType);
+        return _callGemini(provider, prompt, imageBytes, mimeType: mimeType, onStatusChanged: onStatusChanged);
       case 'openai':
-        return _callOpenAI(provider, prompt, imageBytes, mimeType: mimeType);
+        return _callOpenAI(provider, prompt, imageBytes, mimeType: mimeType, onStatusChanged: onStatusChanged);
       case 'anthropic':
-        return _callAnthropic(provider, prompt, imageBytes, mimeType: mimeType);
+        return _callAnthropic(provider, prompt, imageBytes, mimeType: mimeType, onStatusChanged: onStatusChanged);
       default:
-        return _callCustom(provider, prompt, imageBytes, mimeType: mimeType);
+        return _callCustom(provider, prompt, imageBytes, mimeType: mimeType, onStatusChanged: onStatusChanged);
     }
   }
 
@@ -58,7 +60,9 @@ class AiRoutingService {
     String prompt,
     Uint8List imageBytes, {
     String mimeType = 'image/jpeg',
+    void Function(String status)? onStatusChanged,
   }) async {
+    onStatusChanged?.call('Connecting to ${provider.name} (${provider.modelId})...');
     final base64Image = base64Encode(imageBytes);
     final url =
         '${provider.baseUrl}/models/${provider.modelId}:generateContent?key=${provider.apiKey}';
@@ -90,6 +94,7 @@ class AiRoutingService {
       throw Exception('Gemini API error: ${response.statusCode}');
     }
 
+    onStatusChanged?.call('Parsing response from ${provider.name}...');
     final jsonResponse = jsonDecode(response.body);
     final candidates = jsonResponse['candidates'] as List?;
     if (candidates == null || candidates.isEmpty) {
@@ -107,7 +112,9 @@ class AiRoutingService {
     String prompt,
     Uint8List imageBytes, {
     String mimeType = 'image/jpeg',
+    void Function(String status)? onStatusChanged,
   }) async {
+    onStatusChanged?.call('Connecting to ${provider.name} (${provider.modelId})...');
     final base64Image = base64Encode(imageBytes);
     final url = '${provider.baseUrl}/chat/completions';
 
@@ -141,6 +148,7 @@ class AiRoutingService {
       throw Exception('OpenAI API error: ${response.statusCode}');
     }
 
+    onStatusChanged?.call('Parsing response from ${provider.name}...');
     final jsonResponse = jsonDecode(response.body);
     return jsonResponse['choices']?[0]?['message']?['content'] as String? ??
         '';
@@ -151,7 +159,9 @@ class AiRoutingService {
     String prompt,
     Uint8List imageBytes, {
     String mimeType = 'image/jpeg',
+    void Function(String status)? onStatusChanged,
   }) async {
+    onStatusChanged?.call('Connecting to ${provider.name} (${provider.modelId})...');
     final base64Image = base64Encode(imageBytes);
     final url = '${provider.baseUrl}/messages';
 
@@ -188,6 +198,7 @@ class AiRoutingService {
       throw Exception('Anthropic API error: ${response.statusCode}');
     }
 
+    onStatusChanged?.call('Parsing response from ${provider.name}...');
     final jsonResponse = jsonDecode(response.body);
     final content = jsonResponse['content'] as List?;
     if (content == null || content.isEmpty) {
@@ -201,7 +212,9 @@ class AiRoutingService {
     String prompt,
     Uint8List imageBytes, {
     String mimeType = 'image/jpeg',
+    void Function(String status)? onStatusChanged,
   }) async {
+    onStatusChanged?.call('Connecting to ${provider.name} (${provider.modelId})...');
     final base64Image = base64Encode(imageBytes);
     final url = '${provider.baseUrl}/chat/completions';
 
@@ -235,6 +248,7 @@ class AiRoutingService {
       throw Exception('Custom API error: ${response.statusCode}');
     }
 
+    onStatusChanged?.call('Parsing response from ${provider.name}...');
     final jsonResponse = jsonDecode(response.body);
     if (jsonResponse['choices'] != null) {
       return jsonResponse['choices']?[0]?['message']?['content'] as String? ??
