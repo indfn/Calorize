@@ -77,23 +77,22 @@ class DatabaseService {
     final date = DateTime(timestamp.year, timestamp.month, timestamp.day);
     final endOfDay = date.add(const Duration(days: 1));
 
-    final logs = await isar.foodLogs.filter()
-        .timestampBetween(date, endOfDay)
-        .findAll();
-
     int totalCalories = 0;
     double totalProtein = 0;
     double totalCarbs = 0;
     double totalFat = 0;
 
-    for (final log in logs) {
-      totalCalories += log.calories;
-      totalProtein += log.macros.protein ?? 0;
-      totalCarbs += log.macros.carbs ?? 0;
-      totalFat += log.macros.fat ?? 0;
-    }
-
     await isar.writeTxn(() async {
+      final logs = await isar.foodLogs.filter()
+          .timestampBetween(date, endOfDay)
+          .findAll();
+
+      for (final log in logs) {
+        totalCalories += log.calories;
+        totalProtein += log.macros.protein ?? 0;
+        totalCarbs += log.macros.carbs ?? 0;
+        totalFat += log.macros.fat ?? 0;
+      }
       var stat = await isar.dailyStats.filter()
           .dateEqualTo(date)
           .findFirst();
@@ -164,8 +163,6 @@ class DatabaseService {
       debugPrint('Failed to update widgets: $e');
     }
   }
-
-
 
   Future<void> logWeight(double weight) async {
     await isar.writeTxn(() async {

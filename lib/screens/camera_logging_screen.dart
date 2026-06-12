@@ -241,7 +241,7 @@ class _CameraLoggingScreenState extends State<CameraLoggingScreen> {
           Align(
             alignment: Alignment.bottomCenter,
             child: Container(
-              color: Colors.black.withOpacity(0.6),
+              color: Colors.black.withValues(alpha: 0.6),
               padding: const EdgeInsets.only(bottom: 32, top: 16),
               child: Column(
                 mainAxisSize: MainAxisSize.min,

@@ -73,13 +73,7 @@ class _AnalyzeViewState extends State<AnalyzeView> {
     }
   }
 
-  void _handleCancel() {
-    if (_isAnalyzing) {
-      widget.onCancel();
-    } else {
-      widget.onCancel();
-    }
-  }
+  void _handleCancel() => widget.onCancel();
 
   @override
   Widget build(BuildContext context) {
@@ -114,7 +108,7 @@ class _AnalyzeViewState extends State<AnalyzeView> {
                 decoration: InputDecoration(
                   hintText: 'e.g. Lunch at a cafe, homemade pasta with pesto',
                   hintStyle: GoogleFonts.inter(
-                    color: colorScheme.onSurfaceVariant.withOpacity(0.5),
+                    color: colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
                   ),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
@@ -122,7 +116,7 @@ class _AnalyzeViewState extends State<AnalyzeView> {
                   enabledBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
                     borderSide: BorderSide(
-                      color: colorScheme.outline.withOpacity(0.5),
+                      color: colorScheme.outline.withValues(alpha: 0.5),
                     ),
                   ),
                   focusedBorder: OutlineInputBorder(
@@ -270,19 +264,39 @@ class _AnalyzeViewState extends State<AnalyzeView> {
     if (raw.contains('No AI providers')) {
       return 'No AI providers configured. Add one in Settings.';
     }
+
+    // Multi-provider aggregated errors
+    if (raw.contains('All AI providers failed')) {
+      final lines = raw.split('\n');
+      final individual = lines.where((l) => l.contains(': Exception:')).toList();
+      if (individual.isNotEmpty) {
+        final last = individual.last;
+        if (last.contains('API error: 401') || last.contains('API error: 403')) {
+          return 'One or more AI providers failed due to authentication. Check your API keys.';
+        }
+        if (last.contains('API error: 429')) {
+          return 'One or more AI providers hit rate limits. Try again later.';
+        }
+        if (last.contains('Connection refused') || last.contains('SocketException')) {
+          return 'Could not connect to one or more AI providers. Check your internet connection.';
+        }
+      }
+      return 'All AI providers failed to analyze the image. Verify your API keys and try again.';
+    }
+
+    // Single-provider errors
     if (raw.contains('API error: 401') || raw.contains('API error: 403')) {
       return 'Authentication failed. Check your API key.';
     }
     if (raw.contains('API error: 429')) {
       return 'Rate limit exceeded. Please try again later.';
     }
-    if (raw.contains('API error: 5')) {
+    if (RegExp(r'API error: 5\d{2}').hasMatch(raw)) {
       return 'The AI provider server returned an error. Try again.';
     }
     if (raw.contains('Connection refused') || raw.contains('SocketException')) {
       return 'Could not connect to the AI provider. Check your internet connection.';
     }
-    // Strip the "Exception: " prefix for cleaner display
     final cleaned = raw.replaceAll('Exception: ', '');
     if (cleaned.length > 120) {
       return 'An unexpected error occurred. Please try again.';

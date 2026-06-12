@@ -132,7 +132,7 @@ class _FoodHistoryListState extends State<FoodHistoryList> {
                                       ),
                                     ),
                                     Text(
-                                      'P: ${log.macros.protein?.toInt() ?? 0} | C: ${log.macros.carbs?.toInt() ?? 0} | F: ${log.macros.fat?.toInt() ?? 0}',
+                                      'P: ${(log.macros.protein ?? 0).toStringAsFixed(1)} | C: ${(log.macros.carbs ?? 0).toStringAsFixed(1)} | F: ${(log.macros.fat ?? 0).toStringAsFixed(1)}',
                                       style: GoogleFonts.inter(
                                         color: Theme.of(context).disabledColor,
                                         fontSize: 10,

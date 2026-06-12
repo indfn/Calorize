@@ -117,7 +117,7 @@ class _RecentlyUploadedListState extends State<RecentlyUploadedList> {
                       borderRadius: BorderRadius.circular(16),
                       boxShadow: [
                         BoxShadow(
-                          color: Theme.of(context).shadowColor.withOpacity(0.05),
+                          color: Theme.of(context).shadowColor.withValues(alpha: 0.05),
                           blurRadius: 8,
                           offset: const Offset(0, 2),
                         ),
@@ -133,11 +133,10 @@ class _RecentlyUploadedListState extends State<RecentlyUploadedList> {
                             color: Theme.of(context).colorScheme.surfaceContainerHighest,
                             shape: BoxShape.circle,
                           ),
-                          child: const Center(
-                            child: Text(
-                              '🥗', // Generic emoji for now
-                              style: TextStyle(fontSize: 24),
-                            ),
+                          child: Icon(
+                            Icons.restaurant_rounded,
+                            size: 24,
+                            color: Theme.of(context).colorScheme.onSurfaceVariant,
                           ),
                         ),
                         const SizedBox(width: 16),
