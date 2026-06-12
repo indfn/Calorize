@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:calorize/widgets/date_strip.dart';
@@ -17,8 +16,8 @@ import 'package:calorize/data/models/food_log.dart';
 import 'package:calorize/data/models/daily_stat.dart';
 import 'package:calorize/widgets/food_edit_sheet.dart';
 import 'package:calorize/screens/camera_logging_screen.dart';
-import 'package:calorize/screens/settings/ai_providers_screen.dart';
 import 'package:calorize/widgets/fab_sheet.dart';
+import 'package:calorize/widgets/analyze_view.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -227,25 +226,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  String _parseErrorMessage(String raw) {
-    if (raw.contains('No AI providers')) {
-      return 'No AI providers configured. Add one in Settings.';
-    }
-    if (raw.contains('API error: 401') || raw.contains('API error: 403')) {
-      return 'Authentication failed. Check your API key.';
-    }
-    if (raw.contains('API error: 429')) {
-      return 'Rate limit exceeded. Please try again later.';
-    }
-    if (raw.contains('API error: 5')) {
-      return 'The AI provider server returned an error. Try again.';
-    }
-    if (raw.contains('Connection refused') || raw.contains('SocketException')) {
-      return 'Could not connect to the AI provider. Check your internet connection.';
-    }
-    return 'An unexpected error occurred. Please try again.';
-  }
-
   void _handleBarcodeScan() {
     Navigator.push(
       context,
@@ -260,62 +240,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
       final picked = await ImagePicker().pickImage(source: ImageSource.camera);
       if (picked != null && mounted) {
         final imageFile = File(picked.path);
-        // Show context dialog
-        final contextController = TextEditingController();
-        try {
-          final shouldAnalyze = await showDialog<bool>(
-            context: context,
-            builder: (context) => AlertDialog(
-              title: const Text('Add Context'),
-              content: TextField(
-                controller: contextController,
-                decoration: const InputDecoration(
-                  hintText: 'e.g. "Lunch at a cafe", "Homemade pasta"',
-                ),
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(context, false),
-                  child: const Text('Cancel'),
-                ),
-                FilledButton(
-                  onPressed: () => Navigator.pop(context, true),
-                  child: const Text('Analyze'),
-                ),
-              ],
-            ),
-          );
-
-          if (shouldAnalyze == true && mounted) {
-            final userContextText = contextController.text;
-            // Show progress indicator dialog
-            showDialog(
-              context: context,
-              barrierDismissible: false,
-              builder: (context) => const Center(
-                child: Card(
-                  child: Padding(
-                    padding: EdgeInsets.all(24),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        CircularProgressIndicator(),
-                        SizedBox(height: 16),
-                        Text('Analyzing image...'),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            );
-
-            try {
-              final log = await FoodSourcingService().analyzeImage(
-                imageFile,
-                userContextText,
-              );
+        await showDialog(
+          context: context,
+          barrierDismissible: false,
+          builder: (ctx) => AnalyzeView(
+            imageFile: imageFile,
+            onCancel: () => Navigator.pop(ctx),
+            onSuccess: (log) {
+              Navigator.pop(ctx);
               if (mounted) {
-                Navigator.pop(context); // Dismiss progress dialog
                 showModalBottomSheet(
                   context: context,
                   isScrollControlled: true,
@@ -323,65 +256,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   builder: (context) => FoodEditSheet(initialLog: log),
                 );
               }
-            } catch (e) {
-              if (mounted) {
-                Navigator.pop(context);
-                final errorMsg = e.toString();
-                final userFriendlyMsg = _parseErrorMessage(errorMsg);
-
-                await showDialog(
-                  context: context,
-                  builder: (ctx) => AlertDialog(
-                    title: const Text('Analysis Failed'),
-                    content: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(userFriendlyMsg),
-                        if (userContextText.isNotEmpty) ...[
-                          const SizedBox(height: 12),
-                          const Text('Your context:', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
-                          const SizedBox(height: 4),
-                          Text(userContextText, style: TextStyle(fontSize: 13, color: Colors.grey[600])),
-                        ],
-                      ],
-                    ),
-                    actions: [
-                      TextButton(
-                        onPressed: () {
-                          Clipboard.setData(ClipboardData(text: userContextText));
-                          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Context copied!')));
-                        },
-                        child: const Text('Copy Context'),
-                      ),
-                      TextButton(
-                        onPressed: () => Navigator.pop(ctx),
-                        child: const Text('Dismiss'),
-                      ),
-                      if (errorMsg.contains('No AI providers') || errorMsg.contains('API key'))
-                        TextButton(
-                          onPressed: () {
-                            Navigator.pop(ctx);
-                            Navigator.push(context, MaterialPageRoute(builder: (_) => const AiProvidersScreen()));
-                          },
-                          child: const Text('Configure AI'),
-                        ),
-                      FilledButton(
-                        onPressed: () {
-                          Navigator.pop(ctx);
-                          _handleAiAnalysis();
-                        },
-                        child: const Text('Try Again'),
-                      ),
-                    ],
-                  ),
-                );
-              }
-            }
-          }
-        } finally {
-          contextController.dispose();
-        }
+            },
+            onAnalyze: (contextText, onStatusChanged) async {
+              return await FoodSourcingService().analyzeImage(
+                imageFile,
+                contextText,
+                onStatusChanged: onStatusChanged,
+              );
+            },
+          ),
+        );
       }
     } catch (e) {
       if (mounted) {
