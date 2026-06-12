@@ -28,6 +28,8 @@ class _FoodEditSheetState extends State<FoodEditSheet> {
 
   bool _showMicros = false;
 
+  bool get _isEditing => widget.initialLog?.id != null && widget.initialLog!.id > 0;
+
   @override
   void initState() {
     super.initState();
@@ -79,7 +81,6 @@ class _FoodEditSheetState extends State<FoodEditSheet> {
       ..foodName = name
       ..brandName = brand.isEmpty ? null : brand
       ..calories = calories
-      ..timestamp = DateTime.now()
       ..macros = Macros()
       ..macros.protein = protein
       ..macros.carbs = carbs
@@ -88,10 +89,49 @@ class _FoodEditSheetState extends State<FoodEditSheet> {
       ..macros.sugar = sugar
       ..macros.sodium = sodium;
 
-    await DatabaseService().addFoodLog(log);
+    if (_isEditing) {
+      // Edit mode: preserve existing id and timestamp
+      log.id = widget.initialLog!.id;
+      log.timestamp = widget.initialLog!.timestamp;
+      await DatabaseService().updateFoodLog(log);
+    } else {
+      // Create mode: fresh timestamp
+      log.timestamp = DateTime.now();
+      await DatabaseService().addFoodLog(log);
+    }
     
     if (mounted) {
       Navigator.pop(context);
+    }
+  }
+
+  Future<void> _confirmDelete() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Delete Entry'),
+        content: Text('Are you sure you want to delete "${widget.initialLog!.foodName}"?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: TextButton.styleFrom(
+              foregroundColor: Theme.of(context).colorScheme.error,
+            ),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true && mounted) {
+      await DatabaseService().deleteFoodLog(widget.initialLog!.id);
+      if (mounted) {
+        Navigator.pop(context);
+      }
     }
   }
 
@@ -237,11 +277,32 @@ class _FoodEditSheetState extends State<FoodEditSheet> {
                     ),
                   ),
                   child: Text(
-                    'Log Meal',
+                    _isEditing ? 'Update Meal' : 'Log Meal',
                     style: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.w600),
                   ),
                 ),
               ),
+              
+              if (_isEditing) ...[
+                const SizedBox(height: 16),
+                SizedBox(
+                  width: double.infinity,
+                  child: TextButton(
+                    onPressed: _confirmDelete,
+                    style: TextButton.styleFrom(
+                      foregroundColor: Theme.of(context).colorScheme.error,
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    child: Text(
+                      'Delete entry',
+                      style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w600),
+                    ),
+                  ),
+                ),
+              ],
             ],
           ),
         ),
