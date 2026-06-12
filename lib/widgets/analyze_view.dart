@@ -84,7 +84,6 @@ class _AnalyzeViewState extends State<AnalyzeView> {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    final textTheme = Theme.of(context).textTheme;
 
     return Card(
       shape: RoundedRectangleBorder(

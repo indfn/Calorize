@@ -103,11 +103,12 @@ class _CameraLoggingScreenState extends State<CameraLoggingScreen> {
       }
 
       if (imageFile != null && mounted) {
+        final file = imageFile;
         await showDialog(
           context: context,
           barrierDismissible: false,
           builder: (ctx) => AnalyzeView(
-            imageFile: imageFile,
+            imageFile: file,
             onCancel: () {
               if (mounted) Navigator.pop(ctx);
               // In deep-link mode, pop the screen as well
@@ -133,7 +134,7 @@ class _CameraLoggingScreenState extends State<CameraLoggingScreen> {
             },
             onAnalyze: (contextText, onStatusChanged) async {
               return await FoodSourcingService().analyzeImage(
-                imageFile,
+                file,
                 contextText,
                 onStatusChanged: onStatusChanged,
               );
