@@ -71,38 +71,92 @@ class DatabaseService {
         .watch(fireImmediately: true);
   }
 
-  Future<void> addFoodLog(FoodLog log) async {
-    await isar.writeTxn(() async {
-      // 1. Save FoodLog
-      await isar.foodLogs.put(log);
+  /// Recalculates the DailyStat for a given date by summing all FoodLogs for that day.
+  /// Also calls [evaluateDaySuccess] to update goal tracking.
+  Future<void> _recalculateDailyStat(DateTime timestamp) async {
+    final date = DateTime(timestamp.year, timestamp.month, timestamp.day);
+    final endOfDay = date.add(const Duration(days: 1));
 
-      // 2. Update DailyStat
-      final date = DateTime(log.timestamp.year, log.timestamp.month, log.timestamp.day);
-      
-      final stat = await isar.dailyStats.filter()
+    final logs = await isar.foodLogs.filter()
+        .timestampBetween(date, endOfDay)
+        .findAll();
+
+    int totalCalories = 0;
+    double totalProtein = 0;
+    double totalCarbs = 0;
+    double totalFat = 0;
+
+    for (final log in logs) {
+      totalCalories += log.calories;
+      totalProtein += log.macros.protein ?? 0;
+      totalCarbs += log.macros.carbs ?? 0;
+      totalFat += log.macros.fat ?? 0;
+    }
+
+    await isar.writeTxn(() async {
+      var stat = await isar.dailyStats.filter()
           .dateEqualTo(date)
           .findFirst();
 
       if (stat != null) {
-        stat.totalCalories += log.calories;
-        stat.totalProtein += log.macros.protein ?? 0;
-        stat.totalCarbs += log.macros.carbs ?? 0;
-        stat.totalFat += log.macros.fat ?? 0;
-        await isar.dailyStats.put(stat);
+        stat.totalCalories = totalCalories;
+        stat.totalProtein = totalProtein;
+        stat.totalCarbs = totalCarbs;
+        stat.totalFat = totalFat;
       } else {
-        final newStat = DailyStat()
+        stat = DailyStat()
           ..date = date
-          ..totalCalories = log.calories
-          ..totalProtein = log.macros.protein ?? 0
-          ..totalCarbs = log.macros.carbs ?? 0
-          ..totalFat = log.macros.fat ?? 0;
-        await isar.dailyStats.put(newStat);
+          ..totalCalories = totalCalories
+          ..totalProtein = totalProtein
+          ..totalCarbs = totalCarbs
+          ..totalFat = totalFat;
       }
+      await isar.dailyStats.put(stat);
     });
-    
-    // Evaluate day success after adding food
-    await evaluateDaySuccess(log.timestamp);
-    
+
+    await evaluateDaySuccess(date);
+  }
+
+  Future<void> addFoodLog(FoodLog log) async {
+    await isar.writeTxn(() async {
+      await isar.foodLogs.put(log);
+    });
+
+    await _recalculateDailyStat(log.timestamp);
+
+    // Update home screen widgets
+    try {
+      await BackgroundService().updateWidgetData();
+    } catch (e) {
+      debugPrint('Failed to update widgets: $e');
+    }
+  }
+
+  Future<void> updateFoodLog(FoodLog log) async {
+    await isar.writeTxn(() async {
+      await isar.foodLogs.put(log);
+    });
+
+    await _recalculateDailyStat(log.timestamp);
+
+    // Update home screen widgets
+    try {
+      await BackgroundService().updateWidgetData();
+    } catch (e) {
+      debugPrint('Failed to update widgets: $e');
+    }
+  }
+
+  Future<void> deleteFoodLog(Id id) async {
+    final log = await isar.foodLogs.where().idEqualTo(id).findFirst();
+    if (log == null) return;
+
+    await isar.writeTxn(() async {
+      await isar.foodLogs.delete(id);
+    });
+
+    await _recalculateDailyStat(log.timestamp);
+
     // Update home screen widgets
     try {
       await BackgroundService().updateWidgetData();
