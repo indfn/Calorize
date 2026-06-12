@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:calorize/widgets/date_strip.dart';
@@ -152,7 +153,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFF4F6F8),
+                  color: Theme.of(context).colorScheme.surfaceContainerHighest,
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Text(
@@ -210,11 +211,39 @@ class _DashboardScreenState extends State<DashboardScreen> {
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
       builder: (_) => AddOptionsSheet(
-        onManualEntry: _handleManualEntry,
-        onBarcodeScan: _handleBarcodeScan,
-        onAiAnalysis: _handleAiAnalysis,
+        onManualEntry: () {
+          Navigator.pop(context);
+          _handleManualEntry();
+        },
+        onBarcodeScan: () {
+          Navigator.pop(context);
+          _handleBarcodeScan();
+        },
+        onAiAnalysis: () {
+          Navigator.pop(context);
+          _handleAiAnalysis();
+        },
       ),
     );
+  }
+
+  String _parseErrorMessage(String raw) {
+    if (raw.contains('No AI providers')) {
+      return 'No AI providers configured. Add one in Settings.';
+    }
+    if (raw.contains('API error: 401') || raw.contains('API error: 403')) {
+      return 'Authentication failed. Check your API key.';
+    }
+    if (raw.contains('API error: 429')) {
+      return 'Rate limit exceeded. Please try again later.';
+    }
+    if (raw.contains('API error: 5')) {
+      return 'The AI provider server returned an error. Try again.';
+    }
+    if (raw.contains('Connection refused') || raw.contains('SocketException')) {
+      return 'Could not connect to the AI provider. Check your internet connection.';
+    }
+    return 'An unexpected error occurred. Please try again.';
   }
 
   void _handleBarcodeScan() {
@@ -258,6 +287,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
           );
 
           if (shouldAnalyze == true && mounted) {
+            final userContextText = contextController.text;
             // Show progress indicator dialog
             showDialog(
               context: context,
@@ -282,7 +312,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
             try {
               final log = await FoodSourcingService().analyzeImage(
                 imageFile,
-                contextController.text,
+                userContextText,
               );
               if (mounted) {
                 Navigator.pop(context); // Dismiss progress dialog
@@ -296,22 +326,54 @@ class _DashboardScreenState extends State<DashboardScreen> {
             } catch (e) {
               if (mounted) {
                 Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text('Analysis failed: $e'),
-                    backgroundColor: Theme.of(context).colorScheme.error,
-                    action: SnackBarAction(
-                      label: 'Configure AI',
-                      textColor: Colors.white,
-                      onPressed: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => const AiProvidersScreen(),
-                          ),
-                        );
-                      },
+                final errorMsg = e.toString();
+                final userFriendlyMsg = _parseErrorMessage(errorMsg);
+
+                await showDialog(
+                  context: context,
+                  builder: (ctx) => AlertDialog(
+                    title: const Text('Analysis Failed'),
+                    content: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(userFriendlyMsg),
+                        if (userContextText.isNotEmpty) ...[
+                          const SizedBox(height: 12),
+                          const Text('Your context:', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+                          const SizedBox(height: 4),
+                          Text(userContextText, style: TextStyle(fontSize: 13, color: Colors.grey[600])),
+                        ],
+                      ],
                     ),
+                    actions: [
+                      TextButton(
+                        onPressed: () {
+                          Clipboard.setData(ClipboardData(text: userContextText));
+                          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Context copied!')));
+                        },
+                        child: const Text('Copy Context'),
+                      ),
+                      TextButton(
+                        onPressed: () => Navigator.pop(ctx),
+                        child: const Text('Dismiss'),
+                      ),
+                      if (errorMsg.contains('No AI providers') || errorMsg.contains('API key'))
+                        TextButton(
+                          onPressed: () {
+                            Navigator.pop(ctx);
+                            Navigator.push(context, MaterialPageRoute(builder: (_) => const AiProvidersScreen()));
+                          },
+                          child: const Text('Configure AI'),
+                        ),
+                      FilledButton(
+                        onPressed: () {
+                          Navigator.pop(ctx);
+                          _handleAiAnalysis();
+                        },
+                        child: const Text('Try Again'),
+                      ),
+                    ],
                   ),
                 );
               }
