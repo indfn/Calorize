@@ -14,6 +14,20 @@ if (keystorePropertiesFile.exists()) {
     keystoreProperties.load(FileInputStream(keystorePropertiesFile))
 }
 
+// Read version from pubspec.yaml
+val pubspecFile = file("../../pubspec.yaml")
+val versionRegex = Regex("""version:\s*(\d+\.\d+\.\d+)\+(\d+)""")
+var pubspecVersionName = "1.0.0"
+var pubspecVersionCode = 1
+if (pubspecFile.exists()) {
+    val pubspecText = pubspecFile.readText()
+    val match = versionRegex.find(pubspecText)
+    if (match != null) {
+        pubspecVersionName = match.groupValues[1]
+        pubspecVersionCode = match.groupValues[2].toInt()
+    }
+}
+
 android {
     namespace = "com.calorize.app"
     compileSdk = 36
@@ -39,16 +53,13 @@ android {
     }
 
     defaultConfig {
-        // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
         applicationId = "com.calorize.app"
-        // You can update the following values to match your application needs.
-        // For more information, see: https://flutter.dev/to/review-gradle-config.
         
         minSdk = 26 
         targetSdk = 36 
         
-        versionCode = flutter.versionCode
-        versionName = flutter.versionName
+        versionCode = pubspecVersionCode
+        versionName = pubspecVersionName
     }
 
     buildTypes {

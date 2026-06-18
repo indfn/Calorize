@@ -25,19 +25,7 @@ class DatabaseService {
       directory: dir.path,
     );
 
-    // Perform cleanup on startup
-    await cleanOldLogs();
-  }
-
-  Future<void> cleanOldLogs() async {
-    final cutoff = DateTime.now().subtract(const Duration(days: 7));
-    
-    // Delete FoodLogs older than 7 days
-    await isar.writeTxn(() async {
-      await isar.foodLogs.filter()
-          .timestampLessThan(cutoff)
-          .deleteAll();
-    });
+    // All entries retained indefinitely for autofill
   }
 
   Future<List<FoodLog>> getRecentFoodLogs({int limit = 3}) async {
@@ -443,6 +431,23 @@ class DatabaseService {
 
   Future<List<FoodLog>> getAllFoodLogs() async {
     return await isar.foodLogs.where().sortByTimestampDesc().findAll();
+  }
+
+  Future<List<FoodLog>> searchFoodLogs(String query) async {
+    if (query.trim().isEmpty) return [];
+    final results = await isar.foodLogs.filter()
+        .foodNameContains(query, caseSensitive: false)
+        .sortByTimestampDesc()
+        .limit(50)
+        .findAll();
+    final seen = <String>{};
+    final unique = <FoodLog>[];
+    for (final log in results) {
+      if (seen.add(log.foodName.toLowerCase())) {
+        unique.add(log);
+      }
+    }
+    return unique.take(20).toList();
   }
 
   Future<String> exportFoodLogsAsJson() async {

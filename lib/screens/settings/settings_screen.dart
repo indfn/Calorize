@@ -12,7 +12,6 @@ import 'package:calorize/screens/settings/weekly_macros_screen.dart';
 import 'package:calorize/screens/settings/ai_providers_screen.dart';
 
 import 'package:file_picker/file_picker.dart';
-import 'package:url_launcher/url_launcher.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -253,6 +252,171 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
+  void _showCalculationBreakdown(UserProfile p, ColorScheme scheme) {
+    if (p.dob == null || p.weight == null || p.height == null || p.gender == null || p.activityLevel == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Complete your profile first')),
+      );
+      return;
+    }
+
+    final age = MacroCalculator.calculateAge(p.dob!);
+    final bmr = MacroCalculator.calculateBMR(
+      weightKg: p.weight!,
+      heightCm: p.height!,
+      age: age,
+      gender: p.gender!,
+    );
+    final tdee = MacroCalculator.calculateTDEE(
+      bmr: bmr,
+      activityLevel: p.activityLevel!,
+    );
+    final dailyTarget = MacroCalculator.calculateDailyTarget(
+      tdee: tdee,
+      goalType: p.goalType!,
+      weightLossRate: p.weightLossRate ?? 0.5,
+    );
+
+    final genderAdjustment = p.gender == 'Male' ? '+5' : '-161';
+    final activityMultiplier = _activityMultiplierLabel(p.activityLevel!);
+    final goalLabel = p.goalType == 'lose'
+        ? 'Deficit'
+        : p.goalType == 'gain'
+            ? 'Surplus'
+            : 'Maintain';
+    final adjustment = p.goalType == 'maintain'
+        ? 0
+        : ((p.weightLossRate ?? 0.5) * 7700 / 7).round();
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (ctx) {
+        final s = Theme.of(ctx).colorScheme;
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Center(
+                  child: Container(
+                    width: 40, height: 4,
+                    decoration: BoxDecoration(
+                      color: s.outlineVariant,
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 20),
+                Text('Calculation Breakdown',
+                  style: GoogleFonts.inter(fontSize: 20, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 4),
+                Text('How your numbers are calculated',
+                  style: GoogleFonts.inter(fontSize: 13, color: s.onSurfaceVariant),
+                ),
+                const SizedBox(height: 20),
+                _buildBreakdownSection('Basal Metabolic Rate (BMR)', s, children: [
+                  Text(
+                    '10 × weight + 6.25 × height − 5 × age $genderAdjustment',
+                    style: GoogleFonts.inter(fontSize: 12, color: s.onSurfaceVariant, fontStyle: FontStyle.italic),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    '10 × ${p.weight!.toStringAsFixed(0)} + 6.25 × ${p.height!.toStringAsFixed(0)} − 5 × $age $genderAdjustment',
+                    style: GoogleFonts.inter(fontSize: 12, color: s.onSurfaceVariant),
+                  ),
+                  const SizedBox(height: 6),
+                  _buildBreakdownRow('BMR', '$bmr kcal/day', s, bold: true),
+                ]),
+                const SizedBox(height: 16),
+                _buildBreakdownSection('Total Daily Energy Expenditure', s, children: [
+                  Text(
+                    'BMR × Activity Multiplier ($activityMultiplier)',
+                    style: GoogleFonts.inter(fontSize: 12, color: s.onSurfaceVariant, fontStyle: FontStyle.italic),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    '$bmr × ${_activityMultiplierValue(p.activityLevel!)}',
+                    style: GoogleFonts.inter(fontSize: 12, color: s.onSurfaceVariant),
+                  ),
+                  const SizedBox(height: 6),
+                  _buildBreakdownRow('TDEE (Maintenance)', '$tdee kcal/day', s, bold: true),
+                ]),
+                const SizedBox(height: 16),
+                _buildBreakdownSection('Daily Calorie Target', s, children: [
+                  Text(
+                    goalLabel == 'Maintain'
+                        ? 'TDEE (no adjustment needed)'
+                        : 'TDEE $goalLabel Adjustment',
+                    style: GoogleFonts.inter(fontSize: 12, color: s.onSurfaceVariant, fontStyle: FontStyle.italic),
+                  ),
+                  if (goalLabel != 'Maintain') ...[
+                    const SizedBox(height: 4),
+                    Text(
+                      '${p.goalType == 'lose' ? '-' : '+'}$adjustment kcal/day (${(p.weightLossRate ?? 0.5).toStringAsFixed(1)} kg/week × 7700 ÷ 7)',
+                      style: GoogleFonts.inter(fontSize: 12, color: s.onSurfaceVariant),
+                    ),
+                  ],
+                  const SizedBox(height: 6),
+                  _buildBreakdownRow('Daily Target', '$dailyTarget kcal/day', s, bold: true),
+                  const SizedBox(height: 4),
+                  _buildBreakdownRow('Diet Preference', p.dietPreference ?? 'Balanced', s),
+                  _buildBreakdownRow('Protein', '${p.proteinPercentage.toStringAsFixed(0)}% ÷ 4 kcal/g = ${((dailyTarget * p.proteinPercentage / 100) / 4).toStringAsFixed(0)}g', s),
+                  _buildBreakdownRow('Carbs', '${p.carbsPercentage.toStringAsFixed(0)}% ÷ 4 kcal/g = ${((dailyTarget * p.carbsPercentage / 100) / 4).toStringAsFixed(0)}g', s),
+                  _buildBreakdownRow('Fat', '${p.fatPercentage.toStringAsFixed(0)}% ÷ 9 kcal/g = ${((dailyTarget * p.fatPercentage / 100) / 9).toStringAsFixed(0)}g', s),
+                ]),
+                const SizedBox(height: 20),
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton(
+                    onPressed: () => Navigator.pop(ctx),
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                    child: const Text('Close'),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                SizedBox(height: MediaQuery.of(ctx).padding.bottom + 16),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  String _activityMultiplierLabel(String level) {
+    switch (level) {
+      case 'Sedentary': return '1.2 (Little or no exercise)';
+      case 'Light': return '1.375 (Light exercise 1-3 days/week)';
+      case 'Moderate': return '1.55 (Moderate exercise 3-5 days/week)';
+      case 'Active': return '1.725 (Hard exercise 6-7 days/week)';
+      case 'Very Active': return '1.93 (Very hard exercise & physical job)';
+      case 'Extra Active': return '1.93 (Extra active lifestyle)';
+      default: return '1.2';
+    }
+  }
+
+  double _activityMultiplierValue(String level) {
+    switch (level) {
+      case 'Sedentary': return 1.2;
+      case 'Light': return 1.375;
+      case 'Moderate': return 1.55;
+      case 'Active': return 1.725;
+      case 'Very Active': return 1.93;
+      case 'Extra Active': return 1.93;
+      default: return 1.2;
+    }
+  }
+
   Widget _buildSuggestionRow(String label, String value, ColorScheme scheme) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -260,6 +424,48 @@ class _SettingsScreenState extends State<SettingsScreen> {
         Text(label, style: GoogleFonts.inter(fontSize: 14, color: scheme.onSurfaceVariant)),
         Text(value, style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w600)),
       ],
+    );
+  }
+
+  Widget _buildBreakdownSection(String title, ColorScheme s, {required List<Widget> children}) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: s.surfaceContainerHighest.withValues(alpha: 0.3),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: s.outlineVariant.withValues(alpha: 0.2)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(title, style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w600, color: s.primary)),
+          const SizedBox(height: 8),
+          ...children,
+        ],
+      ),
+    );
+  }
+
+  Widget _buildBreakdownRow(String label, String value, ColorScheme s, {bool bold = false}) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 2),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 100,
+            child: Text(label, style: GoogleFonts.inter(fontSize: 13, color: s.onSurfaceVariant)),
+          ),
+          Expanded(
+            child: Text(value, style: GoogleFonts.inter(
+              fontSize: 13,
+              fontWeight: bold ? FontWeight.w600 : FontWeight.w400,
+              color: s.onSurface,
+            )),
+          ),
+        ],
+      ),
     );
   }
 
@@ -484,6 +690,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 MaterialPageRoute(builder: (_) => const AiProvidersScreen()),
               ).then((_) => _loadProfile());
             },
+          ),
+          _buildSectionDivider(scheme),
+          _buildNavRow('View Calculation Breakdown', scheme,
+            subtitle: 'See how your BMR, TDEE, and targets are calculated',
+            onTap: () => _showCalculationBreakdown(p, scheme),
           ),
         ],
       ),
