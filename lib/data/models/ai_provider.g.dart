@@ -28,23 +28,28 @@ const AIProviderSchema = Schema(
       name: r'baseUrl',
       type: IsarType.string,
     ),
-    r'isEnabled': PropertySchema(
+    r'enableGoogleSearch': PropertySchema(
       id: 3,
+      name: r'enableGoogleSearch',
+      type: IsarType.bool,
+    ),
+    r'isEnabled': PropertySchema(
+      id: 4,
       name: r'isEnabled',
       type: IsarType.bool,
     ),
     r'modelId': PropertySchema(
-      id: 4,
+      id: 5,
       name: r'modelId',
       type: IsarType.string,
     ),
     r'name': PropertySchema(
-      id: 5,
+      id: 6,
       name: r'name',
       type: IsarType.string,
     ),
     r'providerId': PropertySchema(
-      id: 6,
+      id: 7,
       name: r'providerId',
       type: IsarType.string,
     )
@@ -109,10 +114,11 @@ void _aIProviderSerialize(
   writer.writeString(offsets[0], object.apiKey);
   writer.writeString(offsets[1], object.apiType);
   writer.writeString(offsets[2], object.baseUrl);
-  writer.writeBool(offsets[3], object.isEnabled);
-  writer.writeString(offsets[4], object.modelId);
-  writer.writeString(offsets[5], object.name);
-  writer.writeString(offsets[6], object.providerId);
+  writer.writeBool(offsets[3], object.enableGoogleSearch);
+  writer.writeBool(offsets[4], object.isEnabled);
+  writer.writeString(offsets[5], object.modelId);
+  writer.writeString(offsets[6], object.name);
+  writer.writeString(offsets[7], object.providerId);
 }
 
 AIProvider _aIProviderDeserialize(
@@ -125,10 +131,11 @@ AIProvider _aIProviderDeserialize(
   object.apiKey = reader.readStringOrNull(offsets[0]);
   object.apiType = reader.readStringOrNull(offsets[1]);
   object.baseUrl = reader.readStringOrNull(offsets[2]);
-  object.isEnabled = reader.readBoolOrNull(offsets[3]);
-  object.modelId = reader.readStringOrNull(offsets[4]);
-  object.name = reader.readStringOrNull(offsets[5]);
-  object.providerId = reader.readStringOrNull(offsets[6]);
+  object.enableGoogleSearch = reader.readBoolOrNull(offsets[3]);
+  object.isEnabled = reader.readBoolOrNull(offsets[4]);
+  object.modelId = reader.readStringOrNull(offsets[5]);
+  object.name = reader.readStringOrNull(offsets[6]);
+  object.providerId = reader.readStringOrNull(offsets[7]);
   return object;
 }
 
@@ -148,10 +155,12 @@ P _aIProviderDeserializeProp<P>(
     case 3:
       return (reader.readBoolOrNull(offset)) as P;
     case 4:
-      return (reader.readStringOrNull(offset)) as P;
+      return (reader.readBoolOrNull(offset)) as P;
     case 5:
       return (reader.readStringOrNull(offset)) as P;
     case 6:
+      return (reader.readStringOrNull(offset)) as P;
+    case 7:
       return (reader.readStringOrNull(offset)) as P;
     default:
       throw IsarError('Unknown property with id $propertyId');
@@ -602,6 +611,34 @@ extension AIProviderQueryFilter
       return query.addFilterCondition(FilterCondition.greaterThan(
         property: r'baseUrl',
         value: '',
+      ));
+    });
+  }
+
+  QueryBuilder<AIProvider, AIProvider, QAfterFilterCondition>
+      enableGoogleSearchIsNull() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(const FilterCondition.isNull(
+        property: r'enableGoogleSearch',
+      ));
+    });
+  }
+
+  QueryBuilder<AIProvider, AIProvider, QAfterFilterCondition>
+      enableGoogleSearchIsNotNull() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(const FilterCondition.isNotNull(
+        property: r'enableGoogleSearch',
+      ));
+    });
+  }
+
+  QueryBuilder<AIProvider, AIProvider, QAfterFilterCondition>
+      enableGoogleSearchEqualTo(bool? value) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'enableGoogleSearch',
+        value: value,
       ));
     });
   }

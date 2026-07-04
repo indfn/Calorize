@@ -12,6 +12,16 @@ class AiRoutingService {
   int _currentIndex = 0;
   bool _roundRobin = false;
 
+  /// Normalizes a base URL by ensuring the endpoint path is appended only once.
+  /// If [baseUrl] already ends with [endpoint], returns it unchanged.
+  /// Otherwise appends [endpoint] (with exactly one slash between them).
+  String _buildUrl(String? baseUrl, String endpoint) {
+    final url = baseUrl ?? '';
+    if (url.endsWith(endpoint)) return url;
+    final normalized = url.endsWith('/') ? url.substring(0, url.length - 1) : url;
+    return '$normalized$endpoint';
+  }
+
   Future<void> loadSettings() async {
     final profile = await DatabaseService().getUserProfile();
     _roundRobin = profile?.aiRoutingMode == 'round_robin';
@@ -64,8 +74,12 @@ class AiRoutingService {
   }) async {
     onStatusChanged?.call('Connecting to ${provider.name} (${provider.modelId})...');
     final base64Image = base64Encode(imageBytes);
-    final url =
-        '${provider.baseUrl}/models/${provider.modelId}:generateContent?key=${provider.apiKey}';
+    final keyParam = (provider.apiKey != null && provider.apiKey!.isNotEmpty)
+        ? '?key=${provider.apiKey}'
+        : '';
+    final endpoint = '/models/${provider.modelId}:generateContent';
+    final base = _buildUrl(provider.baseUrl, endpoint);
+    final url = '$base$keyParam';
 
     final response = await http.post(
       Uri.parse(url),
@@ -84,9 +98,10 @@ class AiRoutingService {
             ]
           }
         ],
-        'tools': [
-          {'google_search': {}}
-        ]
+        if (provider.enableGoogleSearch == true)
+          'tools': [
+            {'google_search': {}}
+          ]
       }),
     );
 
@@ -116,13 +131,14 @@ class AiRoutingService {
   }) async {
     onStatusChanged?.call('Connecting to ${provider.name} (${provider.modelId})...');
     final base64Image = base64Encode(imageBytes);
-    final url = '${provider.baseUrl}/chat/completions';
+    final url = _buildUrl(provider.baseUrl, '/chat/completions');
 
     final response = await http.post(
       Uri.parse(url),
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': 'Bearer ${provider.apiKey}',
+        if (provider.apiKey != null && provider.apiKey!.isNotEmpty)
+          'Authorization': 'Bearer ${provider.apiKey}',
       },
       body: jsonEncode({
         'model': provider.modelId,
@@ -163,14 +179,15 @@ class AiRoutingService {
   }) async {
     onStatusChanged?.call('Connecting to ${provider.name} (${provider.modelId})...');
     final base64Image = base64Encode(imageBytes);
-    final url = '${provider.baseUrl}/messages';
+    final url = _buildUrl(provider.baseUrl, '/messages');
 
     final response = await http.post(
       Uri.parse(url),
       headers: {
         'Content-Type': 'application/json',
-        'x-api-key': '${provider.apiKey}',
         'anthropic-version': '2023-06-01',
+        if (provider.apiKey != null && provider.apiKey!.isNotEmpty)
+          'x-api-key': '${provider.apiKey}',
       },
       body: jsonEncode({
         'model': provider.modelId,
@@ -216,13 +233,14 @@ class AiRoutingService {
   }) async {
     onStatusChanged?.call('Connecting to ${provider.name} (${provider.modelId})...');
     final base64Image = base64Encode(imageBytes);
-    final url = '${provider.baseUrl}/chat/completions';
+    final url = _buildUrl(provider.baseUrl, '/chat/completions');
 
     final response = await http.post(
       Uri.parse(url),
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': 'Bearer ${provider.apiKey}',
+        if (provider.apiKey != null && provider.apiKey!.isNotEmpty)
+          'Authorization': 'Bearer ${provider.apiKey}',
       },
       body: jsonEncode({
         'model': provider.modelId,

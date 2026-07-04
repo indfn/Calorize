@@ -46,3 +46,13 @@ Plans:
 - [x] 06-02-PLAN.md — Unified analysis view + status callbacks
 - [x] 06-03-PLAN.md — Error dialog + FAB fix + streak theming
 - [x] 06-04-PLAN.md — Edit tappability + progress redesign
+
+### Phase 7: Improve custom AI endpoint support - optional API key
+
+**Goal:** [To be planned]
+**Requirements**: TBD
+**Depends on:** Phase 6
+**Plans:** 0 plans
+
+Plans:
+- [ ] TBD (run /gsd-plan-phase 7 to break down)

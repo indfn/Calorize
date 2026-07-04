@@ -11,4 +11,5 @@ class AIProvider {
   String? modelId;
   String? apiType;    // 'openai', 'google', 'anthropic', 'custom'
   bool? isEnabled;
+  bool? enableGoogleSearch; // Gemini-only: enables Google Search grounding
 }

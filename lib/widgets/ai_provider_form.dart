@@ -19,6 +19,7 @@ class _AiProviderFormState extends State<AiProviderForm> {
 
   String? _selectedPreset;
   String _apiType = 'openai';
+  bool _enableGoogleSearch = false;
   final Map<String, String?> _fieldErrors = {};
 
   static const _presets = {
@@ -53,6 +54,7 @@ class _AiProviderFormState extends State<AiProviderForm> {
       _modelIdController.text = p.modelId ?? '';
       _selectedPreset = p.providerId;
       _apiType = p.apiType ?? 'openai';
+      _enableGoogleSearch = p.enableGoogleSearch ?? false;
     } else {
       _selectPreset('google');
     }
@@ -89,10 +91,6 @@ class _AiProviderFormState extends State<AiProviderForm> {
     _fieldErrors.clear();
     bool valid = true;
 
-    if (_apiKeyController.text.isEmpty) {
-      _fieldErrors['apiKey'] = 'API Key is required';
-      valid = false;
-    }
     if (_baseUrlController.text.isEmpty) {
       _fieldErrors['baseUrl'] = 'Base URL is required';
       valid = false;
@@ -120,7 +118,8 @@ class _AiProviderFormState extends State<AiProviderForm> {
       ..baseUrl = _baseUrlController.text
       ..modelId = _modelIdController.text
       ..apiType = _apiType
-      ..isEnabled = true;
+      ..isEnabled = true
+      ..enableGoogleSearch = _enableGoogleSearch;
 
     Navigator.pop(context, provider);
   }
@@ -245,6 +244,46 @@ class _AiProviderFormState extends State<AiProviderForm> {
             ],
             const SizedBox(height: 12),
             _buildTextField(_modelIdController, 'Model ID', 'gpt-4o'),
+            if (_apiType == 'google') ...[
+              const SizedBox(height: 8),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: isDark ? Colors.grey[900] : Colors.grey[100],
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            'Enable Google Search grounding',
+                            style: GoogleFonts.inter(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ),
+                        Switch(
+                          value: _enableGoogleSearch,
+                          onChanged: (v) => setState(() => _enableGoogleSearch = v),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Check whether your model and API tier support search grounding before enabling.',
+                      style: GoogleFonts.inter(
+                        fontSize: 11,
+                        color: Colors.grey[500],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
             const SizedBox(height: 24),
             Row(
               children: [
