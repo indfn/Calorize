@@ -212,6 +212,8 @@ class _FoodEditSheetState extends State<FoodEditSheet> {
 
   @override
   Widget build(BuildContext context) {
+    final bottomInset = MediaQuery.of(context).viewInsets.bottom;
+    final bottomNav = bottomInset > 0 ? 0.0 : MediaQuery.of(context).viewPadding.bottom;
     return Container(
       decoration: BoxDecoration(
         color: Theme.of(context).cardTheme.color,
@@ -221,7 +223,7 @@ class _FoodEditSheetState extends State<FoodEditSheet> {
         left: 24,
         right: 24,
         top: 24,
-        bottom: MediaQuery.of(context).viewInsets.bottom + MediaQuery.of(context).viewPadding.bottom + 24,
+        bottom: bottomInset + bottomNav + 24,
       ),
       child: Form(
         key: _formKey,
