@@ -152,7 +152,7 @@ class _AnalyzeViewState extends State<AnalyzeView> {
                       color: colorScheme.surfaceContainerHighest,
                       borderRadius: BorderRadius.circular(12),
                     ),
-                    child: Text(
+                    child: SelectableText(
                       _contextController.text.isEmpty
                           ? 'No context provided'
                           : _contextController.text,

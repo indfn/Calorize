@@ -104,43 +104,49 @@ class _CameraLoggingScreenState extends State<CameraLoggingScreen> {
 
       if (imageFile != null && mounted) {
         final file = imageFile;
-        await showDialog(
-          context: context,
-          barrierDismissible: false,
-          builder: (ctx) => AnalyzeView(
-            imageFile: file,
-            onCancel: () {
-              if (mounted) Navigator.pop(ctx);
-              // In deep-link mode, pop the screen as well
-              if (!widget.initialBarcodeMode && mounted) {
-                Navigator.pop(context);
-              }
-            },
-            onSuccess: (log) {
-              if (mounted) {
-                Navigator.pop(ctx); // close AnalyzeView
-                showModalBottomSheet(
-                  context: context,
-                  isScrollControlled: true,
-                  backgroundColor: Colors.transparent,
-                  builder: (context) => FoodEditSheet(initialLog: log),
-                ).then((_) {
-                  // After edit sheet closes, pop camera screen in deep-link mode
-                  if (!widget.initialBarcodeMode && mounted) {
-                    Navigator.pop(context);
-                  }
-                });
-              }
-            },
-            onAnalyze: (contextText, onStatusChanged) async {
-              return await FoodSourcingService().analyzeImage(
-                file,
-                contextText,
-                onStatusChanged: onStatusChanged,
-              );
-            },
-          ),
-        );
+        try {
+          await showDialog(
+            context: context,
+            barrierDismissible: false,
+            builder: (ctx) => AnalyzeView(
+              imageFile: file,
+              onCancel: () {
+                if (mounted) Navigator.pop(ctx);
+                // In deep-link mode, pop the screen as well
+                if (!widget.initialBarcodeMode && mounted) {
+                  Navigator.pop(context);
+                }
+              },
+              onSuccess: (log) {
+                if (mounted) {
+                  Navigator.pop(ctx); // close AnalyzeView
+                  showModalBottomSheet(
+                    context: context,
+                    isScrollControlled: true,
+                    backgroundColor: Colors.transparent,
+                    builder: (context) => FoodEditSheet(initialLog: log),
+                  ).then((_) {
+                    // After edit sheet closes, pop camera screen in deep-link mode
+                    if (!widget.initialBarcodeMode && mounted) {
+                      Navigator.pop(context);
+                    }
+                  });
+                }
+              },
+              onAnalyze: (contextText, onStatusChanged) async {
+                return await FoodSourcingService().analyzeImage(
+                  file,
+                  contextText,
+                  onStatusChanged: onStatusChanged,
+                );
+              },
+            ),
+          );
+        } finally {
+          try {
+            await file.delete();
+          } catch (_) {}
+        }
       } else {
         // User cancelled image selection/capture, pop the screen in deep-link mode
         if (mounted && !widget.initialBarcodeMode) {

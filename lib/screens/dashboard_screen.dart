@@ -240,32 +240,38 @@ class _DashboardScreenState extends State<DashboardScreen> {
       final picked = await ImagePicker().pickImage(source: ImageSource.camera);
       if (picked != null && mounted) {
         final imageFile = File(picked.path);
-        await showDialog(
-          context: context,
-          barrierDismissible: false,
-          builder: (ctx) => AnalyzeView(
-            imageFile: imageFile,
-            onCancel: () => Navigator.pop(ctx),
-            onSuccess: (log) {
-              Navigator.pop(ctx);
-              if (mounted) {
-                showModalBottomSheet(
-                  context: context,
-                  isScrollControlled: true,
-                  backgroundColor: Colors.transparent,
-                  builder: (context) => FoodEditSheet(initialLog: log),
+        try {
+          await showDialog(
+            context: context,
+            barrierDismissible: false,
+            builder: (ctx) => AnalyzeView(
+              imageFile: imageFile,
+              onCancel: () => Navigator.pop(ctx),
+              onSuccess: (log) {
+                Navigator.pop(ctx);
+                if (mounted) {
+                  showModalBottomSheet(
+                    context: context,
+                    isScrollControlled: true,
+                    backgroundColor: Colors.transparent,
+                    builder: (context) => FoodEditSheet(initialLog: log),
+                  );
+                }
+              },
+              onAnalyze: (contextText, onStatusChanged) async {
+                return await FoodSourcingService().analyzeImage(
+                  imageFile,
+                  contextText,
+                  onStatusChanged: onStatusChanged,
                 );
-              }
-            },
-            onAnalyze: (contextText, onStatusChanged) async {
-              return await FoodSourcingService().analyzeImage(
-                imageFile,
-                contextText,
-                onStatusChanged: onStatusChanged,
-              );
-            },
-          ),
-        );
+              },
+            ),
+          );
+        } finally {
+          try {
+            await imageFile.delete();
+          } catch (_) {}
+        }
       }
     } catch (e) {
       if (mounted) {

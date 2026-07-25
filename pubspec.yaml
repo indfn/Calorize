@@ -2,7 +2,7 @@ name: calorize
 description: "Calorize - Calorie Tracker"
 publish_to: 'none'
 
-version: 2.1.0+1
+version: 2.1.1+1
 
 environment:
   sdk: ^3.10.1
